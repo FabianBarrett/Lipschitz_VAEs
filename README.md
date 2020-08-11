@@ -1,3 +1,9 @@
+# Project to implement VAEs with Lipschitz constraints
+
+LNets code taken from https://github.com/cemanil/lnets -- extended to VAEs by Ben Barrett.
+
+**Everything that follows here is from the README of the the original Github repo.**
+
 # LNets
 Implementation and evaluation of Lipschitz neural networks (LNets). Paper link: https://arxiv.org/abs/1811.05381 
 
