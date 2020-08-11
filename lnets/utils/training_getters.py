@@ -42,7 +42,12 @@ def get_scheduler(config, optimizer):
 
 
 def get_model_repr(config):
-    if "fc" in config.model.name:
+    if "VAE" in config.model.name:
+        model_repr = "{}_linear_{}_act_{}_latent_dim_{}".format(config.model.name,
+                                                                config.model.linear.type,
+                                                                config.model.activation,
+                                                                config.model.latent_dim)
+    elif "fc" in config.model.name:
         model_repr = "{}_linear_{}_act_{}_depth_{}_width_{}_grouping_{}".format(config.model.name,
                                                                                 config.model.linear.type,
                                                                                 config.model.activation,
@@ -99,9 +104,27 @@ def get_experiment_name(config):
                                           now.strftime("%Y_%m_%d_%H_%M_%S_%f"))
     return exp_name
 
+def get_VAE_experiment_name(config, saving_tag=""):
+    if saving_tag != "":
+        VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_" + saving_tag
+    else: 
+        VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant)
+    return VAE_exp_name
 
-def get_training_dirs(config):
-    exp_dir = os.path.join(config.output_root, get_experiment_name(config))
+def get_training_dirs(config, VAE=False, finetune=False, saving_tag=""):
+
+    if VAE:
+        experiment_name = get_VAE_experiment_name(config, saving_tag=saving_tag)
+    else:
+        experiment_name = get_experiment_name(config)
+
+    if finetune:
+        output_root = config.output_root + '/finetuned'
+        exp_dir = os.path.join(output_root, experiment_name)
+    else:
+        output_root = config.output_root + '/not_finetuned'
+        exp_dir = os.path.join(output_root, experiment_name)
+
     log_dir = os.path.join(exp_dir, 'logs')
     model_dir = os.path.join(exp_dir, 'checkpoints')
     figures_dir = os.path.join(exp_dir, 'figures')

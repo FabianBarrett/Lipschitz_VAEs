@@ -1,12 +1,12 @@
 {
     "cuda": false,
-    "task": "classify",
-    "output_root": "out/classification/mnist",
-    "exp_name": "lipschitz-bjorck",
+    "task": "vae",
+    "output_root": "out/vae/mnist",
+    "exp_name": "lipschitz_bjorck_vae",
     "seed": 0,
     "model": {
       "pretrained_best_path": null,
-      "name": "classify_fc",
+      "name": "ELBO_fcMNISTVAE",
       "activation": "group_sort",
       "linear": {
         "type": "bjorck",
@@ -17,17 +17,45 @@
         "bjorck_order": 1,
         "bias": true
       },
-      "layers": [
-        1024,
-        1024,
-        10
-      ],
-      "groupings": [
-        2,
-        2,
-        1
-      ],
-      "l_constant": 1.0,
+      "encoder_mean": {
+        "l_constant": 2.0, 
+        "layers": [
+          512, 
+          512, 
+          10
+        ],
+        "groupings": [
+          2, 
+          2,
+          1
+        ]
+      },
+      "encoder_variance": {
+        "l_constant": 2.0, 
+        "layers": [
+          512,
+          512, 
+          10
+        ], 
+        "groupings": [
+          2, 
+          2,
+          1
+        ]
+      }, 
+      "decoder": {
+        "l_constant": 2.0, 
+        "layers": [
+          512,
+          512,
+          784
+        ], 
+        "groupings": [
+          2, 
+          2,
+          1]
+      }, 
+      "latent_dim": 10,
       "per_epoch_proj": {
         "turned_on": false,
         "every_n_epochs": 1,
@@ -50,7 +78,7 @@
       "optimizer": "adam",
       "lr_schedule": {
         "name": "step",
-        "lr_init": 0.001,
+        "lr_init": 0.0001, 
         "lr_decay": 0.1,
         "milestones": [
           60,
@@ -59,7 +87,7 @@
         ],
         "last_epoch": -1
       },
-      "epochs": 1,
+      "epochs": 10,
       "batch_size": 128,
       "momentum": 0.9,
       "betas": [
@@ -69,8 +97,8 @@
       ],
       "wdecay": 0.0,
       "criterion": {
-        "tag": "acc",
-        "minmax": "max"
+        "tag": "loss",
+        "minmax": "min"
       },
       "patience": 50,
       "max_grad_norm": 1e8
@@ -94,6 +122,8 @@
     "logging": {
       "report_freq": 1,
       "save_model": false,
-      "save_best": true
+      "save_best": true, 
+      "visualize": true, 
+      "num_images": 10
     }
   }

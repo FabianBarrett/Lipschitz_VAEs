@@ -37,6 +37,7 @@ def main(opt):
     # Weird required hack to fix groupings (None is added to start during model training)
     if 'groupings' in model_config.model and model_config.model.groupings[0] is -1:
         model_config.model.groupings = model_config.model.groupings[1:]
+        
     model_config.cuda = opt['cuda']
     model_config.data.cuda = opt['cuda']
     model = get_model(model_config)

@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--model.exp_path', type=str, metavar='MODELPATH',
                         help="location of pretrained model weights to evaluate")
-    parser.add_argument('--output_root', type=str, default="./outs/classification/finetune",
+    parser.add_argument('--output_root', type=str, default="./out/classification/finetune",
                         help='output directory to which results should be saved')
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
 

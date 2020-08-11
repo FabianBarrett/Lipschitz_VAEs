@@ -3,6 +3,8 @@ from itertools import product
 import numpy as np
 import torch
 from torch.autograd import Variable
+import matplotlib
+# matplotlib.use('PS')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter

@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class Scale(nn.Module):
-    r"""Scales the input vector by a given scalar.
+    """Scales the input vector by a given scalar.
     """
 
     def __init__(self, factor, cuda=False):

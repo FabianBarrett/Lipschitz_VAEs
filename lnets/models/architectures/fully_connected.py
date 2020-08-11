@@ -33,6 +33,7 @@ class FCNet(Architecture):
         layers = self._get_sequential_layers(activation=activation,
                                              l_constant_per_layer=self.l_constant ** (1.0 / (self.num_layers - 1)),
                                              config=config, dropout=dropout)
+        
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):

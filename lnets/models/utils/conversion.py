@@ -10,7 +10,9 @@ def convert_to_bjorck_module(module_list, config):
         m = module_list[i]
         if isinstance(m, DenseLinear):
             new_linear = BjorckLinear(m.in_features, m.out_features, m.bias is not None, config)
-            new_linear.weight.data.copy_(bjorck_orthonormalize(m.weight, iters=30))
+            # BB: Commented out since I think orthonormalization should be distinct from exchanging the type of layers
+            # new_linear.weight.data.copy_(bjorck_orthonormalize(m.weight, iters=30))
+            new_linear.weight.data.copy_(m.weight)
             new_linear.bias.data.copy_(m.bias)
             module_list[i] = new_linear
         if isinstance(m, nn.Sequential):
@@ -40,7 +42,6 @@ def convert_model_to_bjorck(model, config):
     model.model.model = nn.Sequential(*module_list)
     return model
 
-
 def convert_model_from_bjorck(model, config):
     if not isinstance(model.model.model, nn.Sequential):
         raise Exception('Model type different. ')
@@ -48,4 +49,25 @@ def convert_model_from_bjorck(model, config):
     module_list = convert_from_bjorck_module(list(model.model.model.children()), config)
 
     model.model.model = nn.Sequential(*module_list)
+    return model
+
+def convert_VAE_to_bjorck(model, config):
+    encoder_mean_list = convert_to_bjorck_module(list(model.model.encoder_mean.children()), config)
+    model.model.encoder_mean = nn.Sequential(*encoder_mean_list)
+    encoder_variance_list = convert_to_bjorck_module(list(model.model.encoder_variance.children()), config)
+    model.model.encoder_variance = nn.Sequential(*encoder_variance_list)
+    decoder_list = convert_to_bjorck_module(list(model.model.decoder.children()), config)
+    model.model.decoder = nn.Sequential(*decoder_list)
+
+    return model
+
+def convert_VAE_from_bjorck(model, config):
+
+    encoder_mean_list = convert_from_bjorck_module(list(model.model.encoder_mean.children()), config)
+    model.model.encoder_mean = nn.Sequential(*encoder_mean_list)
+    encoder_variance_list = convert_from_bjorck_module(list(model.model.encoder_variance.children()), config)
+    model.model.encoder_variance = nn.Sequential(*encoder_variance_list)
+    decoder_list = convert_from_bjorck_module(list(model.model.decoder.children()), config)
+    model.model.decoder = nn.Sequential(*decoder_list)
+
     return model

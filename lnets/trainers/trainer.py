@@ -1,7 +1,8 @@
+import torch
+
 """
 Based on code from https://github.com/pytorch/tnt/blob/master/torchnet/trainers/trainers.py
 """
-
 
 class Trainer(object):
     def __init__(self):
@@ -35,6 +36,7 @@ class Trainer(object):
 
             # Loop over samples.
             for sample in state['iterator']:
+
                 # On sample.
                 state['sample'] = sample
                 self.hook('on_sample', state)
@@ -43,6 +45,10 @@ class Trainer(object):
                     loss, output = state['model'].loss(state['sample'])
                     state['output'] = output
                     state['loss'] = loss
+                    if torch.isnan(loss):
+                        # print("Loss diverged.")
+                        # BB: Don't just interrupt execution; make sure last best model is saved
+                        raise RuntimeError("Loss diverged.")
                     loss.backward()
                     self.hook('on_forward', state)
                     # To free memory in save_for_backward,
@@ -84,6 +90,7 @@ class Trainer(object):
         for sample in state['iterator']:
             # On sample.
             state['sample'] = sample
+
             self.hook('on_sample', state)
 
             def closure():

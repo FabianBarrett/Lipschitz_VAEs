@@ -16,7 +16,7 @@ def get_datasets(config):
     val_data_args = dict(download=True, transform=test_transform)
     test_data_args = dict(train=False, download=True, transform=test_transform)
 
-    if data_name == 'mnist':
+    if data_name == 'mnist' or 'binarized_mnist':
         train_data = datasets.MNIST(path, **train_data_args)
         val_data = datasets.MNIST(path, **val_data_args)
         test_data = datasets.MNIST(path, **test_data_args)
@@ -52,17 +52,22 @@ def build_loaders(config, train_data, val_data, test_data):
         train_indices, val_indices = load_indices(config['data']['indices_path'], config['data']['per_class_count'])
         train_data = Subset(train_data, train_indices)
         val_data = Subset(val_data, val_indices)
+
+    # BB: I rewrote this using torch.utils.data.Subset to avoid issues with subsetting the training data via slicing and then assigning it to itself (was throwing AttributeError)
+    # BB: I also added 'N' to the config dictionary for loss computation with VAEs.
     elif data_name != 'imagenet-torchvision':
         # Manually readjust train/val size for memory saving.
         data_size = len(train_data)
         train_size = int(data_size * config['data']['train_size'])
 
-        train_data.train_data = train_data.train_data[:train_size]
-        train_data.train_labels = train_data.train_labels[:train_size]
+        config['data']['training_set_size'] = train_size
+
+        train_data = Subset(train_data, range(train_size))
 
         if config['data']['train_size'] != 1:
-            val_data.train_data = val_data.train_data[train_size:]
-            val_data.train_labels = val_data.train_labels[train_size:]
+
+            val_data = Subset(val_data, range(train_size, data_size))
+
         else:
             val_data = None
 

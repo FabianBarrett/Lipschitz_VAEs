@@ -3,3 +3,4 @@ from lnets.models.model_types.classification_model import ClassificationModel, H
 from lnets.models.model_types.classification_model import JacSpecClassificationModel
 from lnets.models.model_types.classification_model import MarginClassificationModel
 from lnets.models.model_types.dual_optim_model import DualOptimModel
+from lnets.models.model_types.VAE_MNIST_model import VAEMNISTModel

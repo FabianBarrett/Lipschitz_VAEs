@@ -1,0 +1,97 @@
+# BB: Written starting July 15
+# BB: Run with the following command: pythonw ./lnets/tasks/vae/mains/ortho_finetune.py --model.exp_path=<trained_bjorck_model_path.pt> 
+
+"""
+Do finetuning to ensure that the VAE's weight matrices are actually orthonormal.
+"""
+
+import json
+import os.path
+import argparse
+from munch import Munch
+
+import torch
+
+from lnets.models import get_model
+from lnets.data.load_data import load_data
+from lnets.models.layers import BjorckLinear
+from lnets.tasks.vae.mains.train_VAE import train
+from lnets.tasks.vae.mains.utils import visualize_reconstructions
+
+def main(opt):
+    if not os.path.isdir(opt['output_root']):
+        os.makedirs(opt['output_root'])
+
+    exp_dir = opt['model']['exp_path']
+
+    model_path = os.path.join(exp_dir, 'checkpoints', 'best', 'best_model.pt')
+    with open(os.path.join(exp_dir, 'logs', 'config.json'), 'r') as f:
+        model_config = Munch.fromDict(json.load(f))
+
+    # Weird required hack to fix groupings (None is added to start during model training)
+    if 'groupings' in model_config.model.encoder_mean and model_config.model.encoder_mean.groupings[0] is -1:
+        model_config.model.encoder_mean.groupings = model_config.model.encoder_mean.groupings[1:]
+
+    # Weird required hack to fix groupings (None is added to start during model training)
+    if 'groupings' in model_config.model.encoder_variance and model_config.model.encoder_variance.groupings[0] is -1:
+        model_config.model.encoder_variance.groupings = model_config.model.encoder_variance.groupings[1:]
+
+    # Weird required hack to fix groupings (None is added to start during model training)
+    if 'groupings' in model_config.model.decoder and model_config.model.decoder.groupings[0] is -1:
+        model_config.model.decoder.groupings = model_config.model.decoder.groupings[1:]
+
+    model = get_model(model_config)
+    model.load_state_dict(torch.load(model_path))
+
+    if opt['data']['cuda']:
+        print('Using CUDA')
+        model.cuda()
+
+    model_config.data.cuda = opt['data']['cuda']
+    data = load_data(model_config)
+
+    # Change the model to use ortho layers by copying the base weights
+    bjorck_iters = opt['ortho_iters']
+
+    for m in model.modules():
+        if isinstance(m, BjorckLinear):
+            m.config.model.linear.bjorck_iter = bjorck_iters
+
+    model_config.output_root = os.path.join(opt['output_root'], model_config.data.name)
+
+    print("Model_config output root", model_config.output_root)
+
+    model_config.optim.lr_schedule.lr_init = opt['finetuning_lr']
+
+    # BB: Reduce number of finetuning epochs if greater than original number of epochs
+    model_config.optim.epochs = min(2, model_config.optim.epochs)
+
+    model = train(model, data, model_config, finetune=True, saving_tag=opt['saving_tag'])
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Do orthonormal finetuning on VAE')
+
+    parser.add_argument('--model.exp_path', type=str, metavar='MODELPATH',
+                        help="location of pretrained model weights to evaluate")
+    # BB: Check my renaming of the directory didn't break anything
+    parser.add_argument('--output_root', type=str, default="./out/vae/",
+                        help='output directory to which results should be saved')
+    parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
+    parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
+    parser.add_argument('--finetuning_lr', type=float, default=1e-5, help='learning rate for finetuning (default: 1e-5)')
+    parser.add_argument('--saving_tag', type=str, default="", help='Note to add to output directory to distinguish between experiments')
+
+    args = vars(parser.parse_args())
+
+    opt = {}
+    for k, v in args.items():
+        cur = opt
+        tokens = k.split('.')
+        for token in tokens[:-1]:
+            if token not in cur:
+                cur[token] = {}
+            cur = cur[token]
+        cur[tokens[-1]] = v
+
+    main(opt)
