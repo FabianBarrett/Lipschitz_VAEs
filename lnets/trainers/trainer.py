@@ -48,6 +48,8 @@ class Trainer(object):
                     state['output'] = output
                     state['loss'] = loss
 
+                    # print("Loss: {}".format(loss))
+
                     if torch.isnan(loss):
                         raise RuntimeError("Loss diverged.")
                     loss.backward()

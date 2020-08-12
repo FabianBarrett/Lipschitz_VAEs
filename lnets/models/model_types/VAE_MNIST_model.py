@@ -29,9 +29,11 @@ class VAEMNISTModel(ExperimentModel):
             NLLs = (-1.0) * bernoulli_likelihood.log_prob(reshaped_inputs).sum(dim=1)
     
         if check_likelihood:
-            return (-1.0) * (self.model.training_set_size / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions, NLLs
+            # return (-1.0) * (self.model.training_set_size / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions, NLLs
+            return (-1.0 / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions, NLLs
         else:
-            return (-1.0) * (self.model.training_set_size / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions
+            # return (-1.0) * (self.model.training_set_size / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions
+            return (-1.0 / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions
 
     def add_to_meters(self, state):
         self.meters['loss'].add(state['loss'].item())

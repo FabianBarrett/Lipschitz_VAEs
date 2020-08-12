@@ -66,7 +66,7 @@ def main(opt):
         model_config.optim.max_grad_norm = opt['max_grad_norm']
 
     if not opt['to_convergence']:
-        model_config.optim.to_convergence = False
+        model_config.optim.to_convergence = opt['to_convergence']
         model_config.optim.epochs = opt['num_finetuning_epochs']
 
     if opt['convergence_tol'] is not None:
