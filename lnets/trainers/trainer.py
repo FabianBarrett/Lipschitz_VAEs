@@ -12,7 +12,7 @@ class Trainer(object):
         if name in self.hooks:
             self.hooks[name](state)
 
-    def train(self, model, iterator, maxepoch, optimizer):
+    def train(self, model, iterator, maxepoch, optimizer, convergence_tol=None):
         # Initialize the state that will fully describe the status of training.
         state = {
             'model': model,
@@ -22,7 +22,9 @@ class Trainer(object):
             'epoch': 0,
             't': 0,
             'train': True,
-            'stop': False
+            'stop': False,
+            'previous_epoch_loss': None, 
+            'convergence_tol': convergence_tol
         }
 
         # On training start.
@@ -45,12 +47,15 @@ class Trainer(object):
                     loss, output = state['model'].loss(state['sample'])
                     state['output'] = output
                     state['loss'] = loss
+
                     if torch.isnan(loss):
-                        # print("Loss diverged.")
-                        # BB: Don't just interrupt execution; make sure last best model is saved
                         raise RuntimeError("Loss diverged.")
                     loss.backward()
+
                     self.hook('on_forward', state)
+
+                    state['previous_loss'] = loss
+
                     # To free memory in save_for_backward,
                     # state['output'] = None
                     # state['loss'] = None

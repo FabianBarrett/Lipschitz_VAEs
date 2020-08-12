@@ -87,6 +87,8 @@
         ],
         "last_epoch": -1
       },
+      "to_convergence": true,
+      "convergence_tol": 1e3,
       "epochs": 10,
       "batch_size": 128,
       "momentum": 0.9,

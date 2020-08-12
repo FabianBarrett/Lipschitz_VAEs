@@ -5,6 +5,8 @@
 
 from functools import partial
 from tqdm import tqdm
+import sys
+import numpy as np
 
 from lnets.utils.config import process_config
 from lnets.data.load_data import load_data
@@ -81,6 +83,16 @@ def train(model, loaders, config, finetune=False, saving_tag=""):
         scheduler.step()
 
         print("Training loss: {:.4f}".format(state['model'].meters['loss'].value()[0]))
+
+        state['current_epoch_loss'] = state['model'].meters['loss'].value()[0]
+
+        if state.get('convergence_tol', None) is not None and state.get('previous_epoch_loss', None) is not None:
+            if np.abs(state['current_epoch_loss'] - state['previous_epoch_loss']) <= state['convergence_tol']:
+                state['stop'] = True
+                print("Convergence criterion reached.")
+
+        state['previous_epoch_loss'] = state['current_epoch_loss']
+
         logger.log_meters('train', state)
 
         if state['epoch'] % config.logging.report_freq == 0:
@@ -109,8 +121,12 @@ def train(model, loaders, config, finetune=False, saving_tag=""):
     trainer.hooks['on_start_epoch'] = on_start_epoch
     trainer.hooks['on_end_epoch'] = partial(on_end_epoch, {'best_val': best_val, 'wait': 0})
 
-    # Enter the training loop.
-    trainer.train(model, loaders['train'], maxepoch=config.optim.epochs, optimizer=optimizer)
+    # BB: Hacky solution to get trainer to run to convergence if config file says to do so
+    if config.optim.to_convergence:
+        trainer.train(model, loaders['train'], maxepoch=sys.maxsize, optimizer=optimizer, convergence_tol=config.optim.convergence_tol)
+    else:
+        # Enter the training loop. 
+        trainer.train(model, loaders['train'], maxepoch=config.optim.epochs, optimizer=optimizer)
 
     # Pick the best model according to validation score and test it.
     model.reset_meters()

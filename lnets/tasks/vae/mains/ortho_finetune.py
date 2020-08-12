@@ -9,6 +9,7 @@ import json
 import os.path
 import argparse
 from munch import Munch
+import pprint
 
 import torch
 
@@ -59,12 +60,17 @@ def main(opt):
 
     model_config.output_root = os.path.join(opt['output_root'], model_config.data.name)
 
-    print("Model_config output root", model_config.output_root)
-
     model_config.optim.lr_schedule.lr_init = opt['finetuning_lr']
 
-    # BB: Reduce number of finetuning epochs if greater than original number of epochs
-    model_config.optim.epochs = min(2, model_config.optim.epochs)
+    if opt['max_grad_norm'] is not None:
+        model_config.optim.max_grad_norm = opt['max_grad_norm']
+
+    if not opt['to_convergence']:
+        model_config.optim.to_convergence = False
+        model_config.optim.epochs = opt['num_finetuning_epochs']
+
+    if opt['convergence_tol'] is not None:
+        model_config.optim.convergence_tol = opt['convergence_tol']
 
     model = train(model, data, model_config, finetune=True, saving_tag=opt['saving_tag'])
 
@@ -81,8 +87,15 @@ if __name__ == '__main__':
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
     parser.add_argument('--finetuning_lr', type=float, default=1e-5, help='learning rate for finetuning (default: 1e-5)')
     parser.add_argument('--saving_tag', type=str, default="", help='Note to add to output directory to distinguish between experiments')
+    parser.add_argument('--max_grad_norm', type=float, default=None, help='maximum gradient norm during finetuning (should be smaller than 1e8; float)')
+    parser.add_argument('--to_convergence', type=bool, default=True, help='whether to run finetuning until model converges (True/False)')
+    parser.add_argument('--num_finetuning_epochs', type=int, default=5, help='if not running to convergence, number of finetuning epochs (int)')
+    parser.add_argument('--convergence_tol', type=int, default=None, help='convergence criterion (difference between training losses across epochs; int)')
 
     args = vars(parser.parse_args())
+
+    pp = pprint.PrettyPrinter()
+    pp.pprint(args)
 
     opt = {}
     for k, v in args.items():
