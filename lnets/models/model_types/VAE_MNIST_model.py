@@ -14,9 +14,9 @@ class VAEMNISTModel(ExperimentModel):
 
     def loss(self, sample, test=False, check_likelihood=False, continuous_bernoulli=True):
         inputs = Variable(sample[0], volatile=test)
-        reconstructions, encoder_mean, encoder_variance = self.model.forward(inputs)
+        reconstructions, encoder_mean, encoder_st_dev = self.model.forward(inputs)
         reshaped_inputs = inputs.reshape(reconstructions.shape)
-        KL_term = 0.5 * (1.0 + encoder_variance.log() - encoder_mean.pow(2) - encoder_variance).sum()
+        KL_term = 0.5 * (1.0 + encoder_st_dev.pow(2).log() - encoder_mean.pow(2) - encoder_st_dev.pow(2)).sum()
         if continuous_bernoulli:
             continuous_bernoulli_likelihood = ds.continuous_bernoulli.ContinuousBernoulli(probs=reconstructions)
             LL_term = continuous_bernoulli_likelihood.log_prob(reshaped_inputs).sum()

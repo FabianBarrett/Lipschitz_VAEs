@@ -8,23 +8,11 @@ import torch.nn as nn
 from lnets.models.layers import BjorckLinear, DenseLinear, StandardLinear
 from lnets.utils.math.projections import bjorck_orthonormalize
 
-# def get_theoretical_bound(config, r, perturbation_norm):
-#     encoder_mean_l_constant = config.model.encoder_mean.l_constant
-#     encoder_variance_l_constant = config.model.encoder_variance.l_constant
-#     decoder_l_constant = config.model.decoder.l_constant
-#     latent_dim = config.model.latent_dim
-#     numerator = np.power(decoder_l_constant, 2) * (encoder_variance_l_constant * perturbation_norm + 2 * np.sqrt(latent_dim)) * (np.sqrt(latent_dim) + encoder_mean_l_constant * np.power(perturbation_norm, 2))
-#     bound = 1.0 - np.divide(numerator, np.power(r, 2))
-#     return bound
-
 def check_NLL(model, iterator):
     NLLs = torch.empty(0)
     for batch in iterator:
         NLLs = torch.cat((NLLs, model.loss(batch, check_likelihood=True)[2]))
     print("Mean NLL on test set: {}".format(NLLs.mean()))
-
-# def estimate_r_robustness_untargeted(model, r, perturbation_norm):
-#     pass
 
 def visualize_reconstructions(model, iterator, config, figures_dir=None, epoch=None, title_string=None):
     
@@ -66,8 +54,8 @@ def orthonormalize_model(model, model_config, iters=20):
 
     encoder_mean_list = orthonormalize_layers(list(model.model.encoder_mean.children()), model_config, iters)
     model.model.encoder_mean = nn.Sequential(*encoder_mean_list)
-    encoder_variance_list = orthonormalize_layers(list(model.model.encoder_variance.children()), model_config, iters)
-    model.model.encoder_variance = nn.Sequential(*encoder_variance_list)
+    encoder_st_dev_list = orthonormalize_layers(list(model.model.encoder_st_dev.children()), model_config, iters)
+    model.model.encoder_st_dev = nn.Sequential(*encoder_st_dev_list)
     decoder_list = orthonormalize_layers(list(model.model.decoder.children()), model_config, iters)
     model.model.decoder = nn.Sequential(*decoder_list)
 
@@ -91,13 +79,13 @@ def check_VAE_singular_values(model):
     print("Checking singular values of layers in the encoder mean...")
     check_module_singular_values(encoder_mean_list)
 
-    print("Checking singular values of layers in the encoder variance...")
-    encoder_variance_list = list(model.model.encoder_variance.children())
-    check_module_singular_values(encoder_mean_list)
+    print("Checking singular values of layers in the encoder st. dev....")
+    encoder_st_dev_list = list(model.model.encoder_st_dev.children())
+    check_module_singular_values(encoder_st_dev_list)
 
     print("Checking singular values of layers in the decoder...")
     decoder_list = list(model.model.decoder.children())
-    check_module_singular_values(encoder_mean_list)
+    check_module_singular_values(decoder_list)
 
 def check_module_orthonormality(module_list, tol, verbose):
 
@@ -119,10 +107,10 @@ def check_VAE_orthonormality(model, tol=1e-2, verbose=False):
     print("Checking orthonormality of layers in the encoder mean at tolerance {}...".format(tol))
     check_module_orthonormality(encoder_mean_list, tol, verbose)
 
-    print("Checking orthonormality of layers in the encoder variance at tolerance {}...".format(tol))
-    encoder_variance_list = list(model.model.encoder_variance.children())
-    check_module_orthonormality(encoder_mean_list, tol, verbose)
+    print("Checking orthonormality of layers in the encoder st. dev. at tolerance {}...".format(tol))
+    encoder_st_dev_list = list(model.model.encoder_st_dev.children())
+    check_module_orthonormality(encoder_st_dev_list, tol, verbose)
 
     print("Checking orthonormality of layers in the decoder at tolerance {}...".format(tol))
     decoder_list = list(model.model.decoder.children())
-    check_module_orthonormality(encoder_mean_list, tol, verbose)
+    check_module_orthonormality(decoder_list, tol, verbose)

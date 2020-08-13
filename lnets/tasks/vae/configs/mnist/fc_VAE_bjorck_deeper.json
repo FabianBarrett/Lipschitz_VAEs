@@ -34,7 +34,7 @@
           1
         ]
       },
-      "encoder_variance": {
+      "encoder_st_dev": {
         "l_constant": 2.0, 
         "layers": [
           512,

@@ -34,8 +34,8 @@ def main(opt):
         model_config.model.encoder_mean.groupings = model_config.model.encoder_mean.groupings[1:]
 
     # Weird required hack to fix groupings (None is added to start during model training)
-    if 'groupings' in model_config.model.encoder_variance and model_config.model.encoder_variance.groupings[0] is -1:
-        model_config.model.encoder_variance.groupings = model_config.model.encoder_variance.groupings[1:]
+    if 'groupings' in model_config.model.encoder_st_dev and model_config.model.encoder_st_dev.groupings[0] is -1:
+        model_config.model.encoder_st_dev.groupings = model_config.model.encoder_st_dev.groupings[1:]
 
     # Weird required hack to fix groupings (None is added to start during model training)
     if 'groupings' in model_config.model.decoder and model_config.model.decoder.groupings[0] is -1:

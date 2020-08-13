@@ -9,7 +9,7 @@ from lnets.models.utils import *
 from lnets.models.architectures.base_architecture import Architecture
 
 class fcMNISTVAE(Architecture):
-    def __init__(self, encoder_mean_layers, encoder_variance_layers, decoder_layers, input_dim, latent_dim, linear_type, activation, bias=True, config=None, dropout=False):
+    def __init__(self, encoder_mean_layers, encoder_st_dev_layers, decoder_layers, input_dim, latent_dim, linear_type, activation, bias=True, config=None, dropout=False):
         super(fcMNISTVAE, self).__init__()
         self.config = config
 
@@ -21,17 +21,17 @@ class fcMNISTVAE(Architecture):
 
         self.encoder_mean_layer_sizes = encoder_mean_layers.copy()
         self.encoder_mean_layer_sizes.insert(0, self.input_dim)  # For bookkeeping purposes.
-        self.encoder_variance_layer_sizes = encoder_variance_layers.copy()
-        self.encoder_variance_layer_sizes.insert(0, self.input_dim)  # For bookkeeping purposes.
+        self.encoder_st_dev_layer_sizes = encoder_st_dev_layers.copy()
+        self.encoder_st_dev_layer_sizes.insert(0, self.input_dim)  # For bookkeeping purposes.
         self.decoder_layer_sizes = decoder_layers.copy()
         self.decoder_layer_sizes.insert(0, self.latent_dim) # For bookkeeping purposes.
 
         self.encoder_mean_l_constant = self.config.model.encoder_mean.l_constant
-        self.encoder_variance_l_constant = self.config.model.encoder_variance.l_constant
+        self.encoder_st_dev_l_constant = self.config.model.encoder_st_dev.l_constant
         self.decoder_l_constant = self.config.model.decoder.l_constant
         
         self.encoder_mean_num_layers = len(self.encoder_mean_layer_sizes)
-        self.encoder_variance_num_layers = len(self.encoder_variance_layer_sizes)
+        self.encoder_st_dev_num_layers = len(self.encoder_st_dev_layer_sizes)
         self.decoder_num_layers = len(self.decoder_layer_sizes)
 
         # Select activation function and grouping.
@@ -41,9 +41,9 @@ class fcMNISTVAE(Architecture):
             self.encoder_mean_groupings = self.config.model.encoder_mean.groupings
             self.encoder_mean_groupings.insert(0, -1)  # For easier bookkeeping later on.
 
-        if 'groupings' in self.config.model.encoder_variance:
-            self.encoder_variance_groupings = self.config.model.encoder_variance.groupings
-            self.encoder_variance_groupings.insert(0, -1)  # For easier bookkeeping later on.  
+        if 'groupings' in self.config.model.encoder_st_dev:
+            self.encoder_st_dev_groupings = self.config.model.encoder_st_dev.groupings
+            self.encoder_st_dev_groupings.insert(0, -1)  # For easier bookkeeping later on.  
 
         if 'groupings' in self.config.model.decoder:
             self.decoder_groupings = self.config.model.decoder.groupings
@@ -59,10 +59,10 @@ class fcMNISTVAE(Architecture):
                                              config=config, dropout=dropout, function='encoder_mean')
         self.encoder_mean = nn.Sequential(*encoder_mean_layers)
 
-        encoder_variance_layers = self._get_sequential_layers(activation=activation,
-                                             l_constant_per_layer=self.encoder_variance_l_constant ** (1.0 / (self.encoder_variance_num_layers - 1)),
-                                             config=config, dropout=dropout, function='encoder_variance')
-        self.encoder_variance = nn.Sequential(*encoder_variance_layers)
+        encoder_st_dev_layers = self._get_sequential_layers(activation=activation,
+                                             l_constant_per_layer=self.encoder_st_dev_l_constant ** (1.0 / (self.encoder_st_dev_num_layers - 1)),
+                                             config=config, dropout=dropout, function='encoder_st_dev')
+        self.encoder_st_dev = nn.Sequential(*encoder_st_dev_layers)
         
         decoder_layers = self._get_sequential_layers(activation=activation,
                                              l_constant_per_layer=self.decoder_l_constant ** (1.0 / (self.decoder_num_layers - 1)),
@@ -74,9 +74,9 @@ class fcMNISTVAE(Architecture):
     def forward(self, x):
         x = x.view(-1, self.input_dim)
         encoder_mean = self.encoder_mean(x)
-        encoder_variance = self.encoder_variance(x)
-        z = encoder_mean + encoder_variance.sqrt() * self.standard_normal.sample(encoder_mean.shape)
-        return self.decoder(z), encoder_mean, encoder_variance
+        encoder_st_dev = self.encoder_st_dev(x)
+        z = encoder_mean + encoder_st_dev * self.standard_normal.sample(encoder_mean.shape)
+        return self.decoder(z), encoder_mean, encoder_st_dev
 
 
     def _get_sequential_layers(self, activation, l_constant_per_layer, config, dropout=False, function=None):
@@ -112,7 +112,7 @@ class fcMNISTVAE(Architecture):
                             config=config))
             layers.append(Scale(l_constant_per_layer, cuda=self.config.cuda))
 
-            # BB: Need to return and adjust scaling to ensure control over Lipschitz constant of encoder variance network
+            # BB: Need to return and adjust scaling to ensure control over Lipschitz constant of encoder st. dev. network
             if function != 'encoder_mean' and i == (len(eval('self.' + function + '_layer_sizes')) - 2):
                 layers.append(nn.Sigmoid())
 
@@ -124,9 +124,9 @@ class fcMNISTVAE(Architecture):
             if hasattr(self.encoder_mean[i], 'project_weights'):
                 self.encoder_mean[i].project_weights(proj_config)
 
-        for i, layer in enumerate(self.encoder_variance):
-            if hasattr(self.encoder_variance[i], 'project_weights'):
-                self.encoder_variance[i].project_weights(proj_config)
+        for i, layer in enumerate(self.encoder_st_dev):
+            if hasattr(self.encoder_st_dev[i], 'project_weights'):
+                self.encoder_st_dev[i].project_weights(proj_config)
 
         for i, layer in enumerate(self.decoder):
             if hasattr(self.decoder[i], 'project_weights'):
