@@ -1,4 +1,5 @@
 import torch
+# from lnets.models.layers import BjorckLinear
 
 """
 Based on code from https://github.com/pytorch/tnt/blob/master/torchnet/trainers/trainers.py
@@ -48,6 +49,10 @@ class Trainer(object):
                     state['output'] = output
                     state['loss'] = loss
 
+                    # print(50 * "*")
+                    # print("Iteration: {}".format(state['t']))
+                    # print("Input: {}".format(state['sample']))
+                    # print("Output: {}".format(output))
                     # print("Loss: {}".format(loss))
 
                     if torch.isnan(loss):
@@ -62,6 +67,14 @@ class Trainer(object):
                     # state['output'] = None
                     # state['loss'] = None
                     return loss
+
+                # for module in state['model'].modules():
+                #     if isinstance(module, BjorckLinear):
+                #         print(30 * "+")
+                #         print("Module dimensions: {}".format(module.weight.t().shape))
+                #         print("Module weights: {}".format(module.weight))
+                #         print("Module gradients: {}".format(module.weight.grad))
+                # print(50 * "*")
 
                 # On update.
                 state['optimizer'].zero_grad()

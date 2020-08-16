@@ -106,7 +106,10 @@ def get_experiment_name(config):
 
 def get_VAE_experiment_name(config, saving_tag=""):
     if saving_tag != "":
-        VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_" + saving_tag
+        if "standard" in saving_tag:
+            VAE_exp_name = "VAE" + "_" + saving_tag
+        else:
+            VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_" + saving_tag  
     else: 
         VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant)
     return VAE_exp_name

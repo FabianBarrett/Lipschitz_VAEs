@@ -11,14 +11,12 @@ import torch
 
 from lnets.models import get_model
 from lnets.data.load_data import load_data
-from lnets.trainers.trainer import Trainer
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
 from lnets.tasks.vae.mains.utils import orthonormalize_model, \
                                         check_VAE_singular_values, \
                                         check_VAE_orthonormality, \
                                         visualize_reconstructions, \
-                                        check_NLL #, \
-                                        # get_theoretical_bound
+                                        check_NLL
 
 def check_model(opt):
 
@@ -85,10 +83,6 @@ def check_model(opt):
 
     # BB: Check negative log likelihood is on order of what would be expected from well-trained VAE
     check_NLL(orthonormalized_standard_model, data['test'])
-    
-    # # BB: Get data-independent lower bound on probability of reconstruction within r given perturbation of norm < perturbation_norm
-    # theoretical_bound = get_theoretical_bound(model_config, opt['r'], opt['perturbation_norm'])
-    # print("Lower bound on probability of reconstruction within radius={} of unperturbed reconstruction given perturbation of norm <{}: {}".format(opt['r'], opt['perturbation_norm'], theoretical_bound))
 
 
 if __name__ == '__main__':
@@ -100,8 +94,6 @@ if __name__ == '__main__':
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
     parser.add_argument('--visualize', type=bool, default=False, help="whether to visualize sample reconstructions (default: False)")
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
-    parser.add_argument('--r', type=float, default=5.0, help='desired radius between reconstructions')
-    parser.add_argument('--perturbation_norm', type=float, default=5.0, help='maximum perturbation in input space')
 
     args = vars(parser.parse_args())
 

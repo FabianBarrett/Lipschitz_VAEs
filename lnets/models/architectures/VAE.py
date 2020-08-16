@@ -112,7 +112,6 @@ class fcMNISTVAE(Architecture):
                             config=config))
             layers.append(Scale(l_constant_per_layer, cuda=self.config.cuda))
 
-            # BB: Need to return and adjust scaling to ensure control over Lipschitz constant of encoder st. dev. network
             if function != 'encoder_mean' and i == (len(eval('self.' + function + '_layer_sizes')) - 2):
                 layers.append(nn.Sigmoid())
 
@@ -131,6 +130,48 @@ class fcMNISTVAE(Architecture):
         for i, layer in enumerate(self.decoder):
             if hasattr(self.decoder[i], 'project_weights'):
                 self.decoder[i].project_weights(proj_config)
+
+    # BB: Code taken but slightly adapted from Alex Camuto and Matthew Willetts
+    # Note: maximum_noise_norm defines maximum radius of ball induced by noise around datapoint
+    def eval_max_damage_attack(self, x, noise, maximum_noise_norm):
+
+        noise = torch.tensor(noise)
+        x = torch.tensor(x)
+        noise.requires_grad_(True)
+        x.requires_grad_(True)
+
+        noise = maximum_noise_norm * noise.div(noise.norm(p=2))
+        noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
+
+        original_reconstruction, _, _ = self.forward(x.view(-1, self.input_dim).float())
+        noisy_reconstruction, _, _ = self.forward(noisy_x.float())
+
+        # BB: Note this is the maximum damage objective
+        loss = -(noisy_reconstruction - original_reconstruction).norm(p=2)
+        gradient = torch.autograd.grad(loss, noise, retain_graph=True, create_graph=True)[0]
+
+        return loss, gradient
+
+    # BB: Code taken but adapted from Alex Camuto and Matthew Willetts
+    # Uses attack in Eq. 5 of https://arxiv.org/pdf/1806.04646.pdf
+    def eval_latent_space_attack(self, x, target_x, noise, regularization_coefficient):
+
+        noise = torch.tensor(noise)
+        x = torch.tensor(x)
+        noise.requires_grad_(True)
+        x.requires_grad_(True)
+
+        noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
+        _, noisy_mean, noisy_st_dev = self.forward(noisy_x.float())
+        _, target_mean, target_st_dev = self.forward(target_x.view(-1, self.input_dim).float())
+
+        noisy_z_distribution = ds.multivariate_normal.MultivariateNormal(noisy_mean, noisy_st_dev.pow(2).squeeze().diag())
+        target_z_distribution = ds.multivariate_normal.MultivariateNormal(target_mean, target_st_dev.pow(2).squeeze().diag())
+
+        loss = ds.kl.kl_divergence(noisy_z_distribution, target_z_distribution) + regularization_coefficient * noise.norm(p=2).sum()
+        gradient = torch.autograd.grad(loss, noise, retain_graph=True, create_graph=True)[0]
+
+        return loss, gradient
 
     # BB: Not implemented for now (left until later / necessary)
     def get_activations(self, x):

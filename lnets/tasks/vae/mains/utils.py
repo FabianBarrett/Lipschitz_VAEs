@@ -92,6 +92,8 @@ def check_module_orthonormality(module_list, tol, verbose):
     layer_counter = 1
     for i in range(len(module_list)):
         if isinstance(module_list[i], StandardLinear):
+            print("Layer weights shape: {}".format(module_list[i].weight.shape))
+            print("Transposed layer weights shape: {}".format(module_list[i].weight.t().shape))
             layer_weights = module_list[i].weight.t()
             layer_weights_product_diagonal = layer_weights.t().mm(layer_weights).diag()
             if verbose:
