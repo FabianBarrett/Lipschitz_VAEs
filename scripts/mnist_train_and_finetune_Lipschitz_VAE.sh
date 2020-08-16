@@ -1,4 +1,4 @@
-l_constants=( 15.0 20.0 )
+l_constants=( 2.0 )
 saving_tag="continuous_bernoulli_st_dev"
 for l_constant in "${l_constants[@]}"
 do

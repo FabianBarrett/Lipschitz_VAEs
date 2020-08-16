@@ -16,7 +16,8 @@ from lnets.tasks.vae.mains.utils import orthonormalize_model, \
                                         check_VAE_singular_values, \
                                         check_VAE_orthonormality, \
                                         visualize_reconstructions, \
-                                        check_NLL
+                                        check_NLL, \
+                                        fix_groupings
 
 def check_model(opt):
 
@@ -26,17 +27,7 @@ def check_model(opt):
     with open(os.path.join(exp_dir, 'logs', 'config.json'), 'r') as f:
         model_config = Munch.fromDict(json.load(f))
 
-    # Weird required hack to fix groupings (None is added to start during model training)
-    if 'groupings' in model_config.model.encoder_mean and model_config.model.encoder_mean.groupings[0] is -1:
-        model_config.model.encoder_mean.groupings = model_config.model.encoder_mean.groupings[1:]
-
-    # Weird required hack to fix groupings (None is added to start during model training)
-    if 'groupings' in model_config.model.encoder_st_dev and model_config.model.encoder_st_dev.groupings[0] is -1:
-        model_config.model.encoder_st_dev.groupings = model_config.model.encoder_st_dev.groupings[1:]
-
-    # Weird required hack to fix groupings (None is added to start during model training)
-    if 'groupings' in model_config.model.decoder and model_config.model.decoder.groupings[0] is -1:
-        model_config.model.decoder.groupings = model_config.model.decoder.groupings[1:]
+    model_config = fix_groupings(model_config)
 
     bjorck_model = get_model(model_config)
     bjorck_model.load_state_dict(torch.load(model_path))

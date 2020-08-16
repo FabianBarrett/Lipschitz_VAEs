@@ -8,6 +8,31 @@ import torch.nn as nn
 from lnets.models.layers import BjorckLinear, DenseLinear, StandardLinear
 from lnets.utils.math.projections import bjorck_orthonormalize
 
+def get_target_image(batch, input_class, input_index, num_images):
+    image_counter = 0
+    image_index = input_index + 1
+    while image_counter < (num_images - 1):
+        image_index %= num_images
+        if batch[1][image_index] != input_class:
+            return batch[0][image_index], batch[1][image_index]
+        image_counter += 1
+        image_index += 1
+    raise RuntimeError("No appropriate target image found.")
+
+# Weird required hack to fix groupings
+def fix_groupings(config):
+
+    if 'groupings' in config.model.encoder_mean and config.model.encoder_mean.groupings[0] is -1:
+        config.model.encoder_mean.groupings = config.model.encoder_mean.groupings[1:]
+
+    if 'groupings' in config.model.encoder_st_dev and config.model.encoder_st_dev.groupings[0] is -1:
+        config.model.encoder_st_dev.groupings = config.model.encoder_st_dev.groupings[1:]
+
+    if 'groupings' in config.model.decoder and config.model.decoder.groupings[0] is -1:
+        config.model.decoder.groupings = config.model.decoder.groupings[1:]
+
+    return config
+
 def check_NLL(model, iterator):
     NLLs = torch.empty(0)
     for batch in iterator:

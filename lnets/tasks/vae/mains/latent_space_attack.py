@@ -14,49 +14,10 @@ import os
 from lnets.models import get_model
 from lnets.data.load_data import load_data
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
-from lnets.tasks.vae.mains.utils import orthonormalize_model
-
-def get_target_image(batch, input_class, input_index, num_images):
-    image_counter = 0
-    image_index = input_index + 1
-    while image_counter < (num_images - 1):
-        image_index %= num_images
-        if batch[1][image_index] != input_class:
-            return batch[0][image_index], batch[1][image_index]
-        image_counter += 1
-        image_index += 1
-    raise RuntimeError("No appropriate target image found.")
+from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, get_target_image
 
 # BB: Note I haven't checked the internals of this thoroughly
 # BB: Taken but adapted from Alex Camuto and Matthew Willetts
-def max_damage_optimize_noise(model, config, image, maximum_noise_norm):
-
-	initial_noise = np.random.uniform(-1e-8, 1e-8, size=(1, config.data.im_height, config.data.im_width)).astype(np.float32)
-
-	adversarial_losses = []
-
-	def fmin_func(noise):
-
-		loss, gradient = model.eval_max_damage_attack(image, noise, maximum_noise_norm)
-		adversarial_losses.append(loss)
-		return float(loss.data.numpy()), gradient.data.numpy().flatten().astype(np.float64)
-
-	# BB: Bounds on the noise to ensure pixel values remain in interval [0, 1]
-	lower_limit = -image.data.numpy().flatten()
-	upper_limit = (1.0 - image.data.numpy().flatten())
-
-	bounds = zip(lower_limit, upper_limit)
-	bounds = [sorted(y) for y in bounds]
-
-	# BB: Optimizer to find adversarial noise
-	perturbed_image, _, _ = scipy.optimize.fmin_l_bfgs_b(fmin_func,
-                                                                  x0=initial_noise,
-                                                                  bounds=bounds,
-                                                                  m=100,
-                                                                  factr=10,
-                                                                  pgtol=1e-20)
-	return (torch.tensor(perturbed_image).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
-
 def latent_space_optimize_noise(model, config, image, target_image, initial_noise, regularization_coefficient):
 
 	adversarial_losses = []
@@ -102,6 +63,8 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
 
+    lipschitz_constant = config.model.encoder_mean.l_constant
+
     for index in range(num_images):
         print("Performing latent space attack {}...".format(index + 1))
 
@@ -117,21 +80,20 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
         comparison_image_compilation = get_attack_images(comparison_model, config, original_image, target_image, initial_noise, regularization_coefficient)
 
         # Plotting
-        lipschitz_constant = config.model.encoder_mean.l_constant
         plt.imshow(lipschitz_image_compilation.detach().squeeze().numpy())
         plt.axis('off')
-        plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Left to right: Original image, original reconstruction, \n perturbed image, perturbed reconstruction, target")
+        plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Attack coefficient: {}".format(regularization_coefficient) + "\n Left to right: Original image, original reconstruction, \n perturbed image, perturbed reconstruction, target")
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
         plt.savefig(plotting_dir + "latent_attack_{}_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
 
         plt.imshow(comparison_image_compilation.detach().squeeze().numpy())
         plt.axis('off')
-        plt.title("Latent space attack on standard VAE \n Left to right: Original image, original reconstruction, \n perturbed image, perturbed reconstruction, target")
+        plt.title("Latent space attack on standard VAE" + "\n Attack coefficient: {}".format(regularization_coefficient) + "\n Left to right: Original image, original reconstruction, \n perturbed image, perturbed reconstruction, target")
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        plt.savefig(plotting_dir + "latent_attack_{}_standard_reg_coefficient_{}.png".format(index + 1, regularization_coefficient), dpi=300)
+        plt.savefig(plotting_dir + "latent_attack_{}_comparison_for_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
 
 
-def attack_model(opt):
+def latent_attack_model(opt):
 
     lipschitz_model_exp_dir = opt['lipschitz_model']['exp_path']
     comparison_model_exp_dir = opt['comparison_model']['exp_path']
@@ -144,24 +106,8 @@ def attack_model(opt):
     with open(os.path.join(comparison_model_exp_dir, 'logs', 'config.json'), 'r') as f:
         comparison_model_config = Munch.fromDict(json.load(f))
 
-    # Weird required hack to fix groupings (None is added to start during model training)
-    if 'groupings' in lipschitz_model_config.model.encoder_mean and lipschitz_model_config.model.encoder_mean.groupings[0] is -1:
-        lipschitz_model_config.model.encoder_mean.groupings = lipschitz_model_config.model.encoder_mean.groupings[1:]
-
-    if 'groupings' in lipschitz_model_config.model.encoder_st_dev and lipschitz_model_config.model.encoder_st_dev.groupings[0] is -1:
-        lipschitz_model_config.model.encoder_st_dev.groupings = lipschitz_model_config.model.encoder_st_dev.groupings[1:]
-
-    if 'groupings' in lipschitz_model_config.model.decoder and lipschitz_model_config.model.decoder.groupings[0] is -1:
-        lipschitz_model_config.model.decoder.groupings = lipschitz_model_config.model.decoder.groupings[1:]
-
-    if 'groupings' in comparison_model_config.model.encoder_mean and comparison_model_config.model.encoder_mean.groupings[0] is -1:
-        comparison_model_config.model.encoder_mean.groupings = comparison_model_config.model.encoder_mean.groupings[1:]
-
-    if 'groupings' in comparison_model_config.model.encoder_st_dev and comparison_model_config.model.encoder_st_dev.groupings[0] is -1:
-        comparison_model_config.model.encoder_st_dev.groupings = comparison_model_config.model.encoder_st_dev.groupings[1:]
-
-    if 'groupings' in comparison_model_config.model.decoder and comparison_model_config.model.decoder.groupings[0] is -1:
-        comparison_model_config.model.decoder.groupings = comparison_model_config.model.decoder.groupings[1:]
+    lipschitz_model_config = fix_groupings(lipschitz_model_config)
+    comparison_model_config = fix_groupings(comparison_model_config)
 
     bjorck_model = get_model(lipschitz_model_config)
     bjorck_model.load_state_dict(torch.load(lipschitz_model_path))
@@ -186,10 +132,9 @@ def attack_model(opt):
     orthonormalized_standard_model.eval()
     comparison_model.eval()
 
-    print("Performing latent space attacks...")
-    latent_space_attack(orthonormalized_standard_model, comparison_model, lipschitz_model_config, data['test'], opt['num_images'])
+    print("Performing latent space attacks for Lipschitz constant {} with regularization coefficient {}...".format(lipschitz_model_config.model.encoder_mean.l_constant, opt['regularization_coefficient']))
+    latent_space_attack(orthonormalized_standard_model, comparison_model, lipschitz_model_config, data['test'], opt['num_images'], regularization_coefficient=opt['regularization_coefficient'])
 
-    ### RETURN AND DO SOMETHING WITH MAX DAMAGE ATTACKS ###
 
 if __name__ == '__main__':
 
@@ -201,6 +146,7 @@ if __name__ == '__main__':
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
     parser.add_argument('--num_images', type=int, default=10, help='number of images to perform latent space attack on')
+    parser.add_argument('--regularization_coefficient', type=float, default=1.0, help='regularization coefficient to use in latent space attack')
 
     args = vars(parser.parse_args())
 
@@ -214,4 +160,4 @@ if __name__ == '__main__':
             cur = cur[token]
         cur[tokens[-1]] = v
 
-    attack_model(opt)
+    latent_attack_model(opt)
