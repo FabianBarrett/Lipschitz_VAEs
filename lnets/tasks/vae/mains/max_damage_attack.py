@@ -8,6 +8,7 @@ import scipy.optimize
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from tqdm import tqdm
 
 from lnets.models import get_model
 from lnets.data.load_data import load_data
@@ -50,22 +51,21 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
 
     # Find the probability of reconstructions within r under a max damage attack with given perturbation norm
-    noise_norms = torch.linspace(1e-1, maximum_noise_norm, 2) ### CHANGE THIS BACK ###
-
-    ### TO DO IN THE MORNING: FIGURE OUT WHY COMPARISON MODEL IS NOT COMING UP, FIGURE OUT WHETHER PROBABILITIES ARE BEING CORRECTLY COMPUTED (FLOAT DIVISION ISSUE?) ###
-
+    noise_norms = torch.linspace(1e-1, maximum_noise_norm, 10)
+    
     print("Estimating r-robustness probability...")
     for image_index in range(num_images):
         print("Estimating probability for image {}...".format(image_index + 1))
         original_image = attack_sample[0][image_index]
         results = []
         for model_index in range(len(models)):
+            print("Attacking image {} for model {}...".format(image_index + 1, model_index + 1))
             model = models[model_index]
             model_results = []
             for noise_norm in noise_norms:
                 distances = []
                 # BB: Return and check that it makes sense to be re-computing the adversarial noise
-                for sample_index in range(num_estimation_samples):
+                for sample_index in tqdm(range(num_estimation_samples)):
                     _, unperturbed_reconstruction = model.loss(original_image)
                     perturbed_image, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm)
                     _, perturbed_reconstruction = model.loss(perturbed_image)
@@ -77,15 +77,19 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
                 results.append(("Standard VAE", model_results))
             else:
                 # Note: This assumes the Lipschitz of the encoder and decoder are the same
-            	results.append(("Lipschitz constant " + str(model_configs[model_index].model.encoder_mean.l_constant), model_results))
+                results.append(("Lipschitz constant " + str(model_configs[model_index].model.encoder_mean.l_constant), model_results))
 
+        plt.clf()
         for model_results in results:
         	plt.plot(noise_norms.numpy(), np.array(model_results[1]), label=model_results[0])
         plt.legend()
         plt.xlabel(r"$|\delta_x|$")
         plt.ylabel(r"$\mathbb{P}(||\Delta||_2 \leq r)$")
+        plt.ylim(bottom=0.0, top=1.2)
+        plt.title("Max damage attacks on image {}".format(image_index + 1) + "\n (Estimated using {} samples for r={})".format(num_estimation_samples, r))
         plotting_dir = "out/vae/attacks/max_damage_attacks/"
         plt.savefig(plotting_dir + "r_robustness_probability_max_damage_example_{}.png".format(image_index + 1), dpi=300)
+        plt.clf()
 
 def max_damage_attack_model(opt):
 
@@ -142,7 +146,7 @@ def max_damage_attack_model(opt):
     orthonormalized_models.append(comparison_model)
     model_configs.append(comparison_model_config)
 
-    get_max_damage_plot(models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_images'], opt['num_estimation_samples'], opt['r'])
+    get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_images'], opt['num_estimation_samples'], opt['r'])
 
 
 if __name__ == '__main__':
@@ -155,9 +159,9 @@ if __name__ == '__main__':
     parser.add_argument('--l_constants', type=float, nargs="+", help="Lipschitz constants corresponding to models to attack")
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
-    parser.add_argument('--num_images', type=int, default=1, help='number of images to perform latent space attack on')
-    parser.add_argument('--num_estimation_samples', type=int, default=2, help='number of forward passes to use for estimating r / capital R') ### CHANGE THIS BACK ###
-    parser.add_argument('--r', type=float, default=5.0, help='value of r to evaluate r-robustness probability for')
+    parser.add_argument('--num_images', type=int, default=3, help='number of images to perform latent space attack on')
+    parser.add_argument('--num_estimation_samples', type=int, default=20, help='number of forward passes to use for estimating r / capital R') ### CHANGE THIS BACK ###
+    parser.add_argument('--r', type=float, default=10.0, help='value of r to evaluate r-robustness probability for')
     parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
 
     args = vars(parser.parse_args())

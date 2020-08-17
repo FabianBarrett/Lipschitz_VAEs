@@ -1,4 +1,4 @@
-l_constants=( 5.0 10.0 )
+l_constants=( 2.0 )
 saving_tag="continuous_bernoulli_st_dev"
 regularization_coefficients=( 0.0 0.5 1.0 )
 for l_constant in "${l_constants[@]}"
