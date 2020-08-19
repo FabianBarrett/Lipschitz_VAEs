@@ -36,13 +36,14 @@ def max_damage_optimize_noise(model, config, image, maximum_noise_norm):
     bounds = [sorted(y) for y in bounds]
 
     # BB: Optimizer to find adversarial noise
-    perturbed_image, _, _ = scipy.optimize.fmin_l_bfgs_b(fmin_func,
-                                                                  x0=initial_noise,
-                                                                  bounds=bounds,
-                                                                  m=100,
-                                                                  factr=10,
-                                                                  pgtol=1e-20)
-    return (torch.tensor(perturbed_image).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
+    noise, _, _ = scipy.optimize.fmin_l_bfgs_b(fmin_func,
+                                                         x0=initial_noise,
+                                                         bounds=bounds,
+                                                         m=100,
+                                                         factr=10,
+                                                         pgtol=1e-20)
+
+    return (torch.tensor(noise).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
 
 # BB: Note the following is to be extended / built upon (i.e. further plots to come)
 def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num_images, num_estimation_samples, r):
@@ -66,10 +67,12 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
                 distances = []
                 # BB: Return and check that it makes sense to be re-computing the adversarial noise
                 for sample_index in tqdm(range(num_estimation_samples)):
-                    _, unperturbed_reconstruction = model.loss(original_image)
-                    perturbed_image, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm)
-                    _, perturbed_reconstruction = model.loss(perturbed_image)
-                    distances.append((perturbed_reconstruction.flatten() - unperturbed_reconstruction.flatten()).norm(p=2))
+                    _, clean_reconstruction = model.loss(original_image)
+                    noise, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm)
+                    noise = (maximum_noise_norm * noise.div(noise.norm(p=2)))
+                    noisy_image = original_image + noise.view(1, model_configs[0].data.im_height, model_configs[0].data.im_width)
+                    _, noisy_reconstruction = model.loss(noisy_image)
+                    distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
                 distances = torch.tensor(distances)
                 estimated_probability = len(distances[distances <= r]) / num_estimation_samples
                 model_results.append(estimated_probability)
@@ -88,7 +91,7 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
         plt.ylim(bottom=0.0, top=1.2)
         plt.title("Max damage attacks on image {}".format(image_index + 1) + "\n (Estimated using {} samples for r={})".format(num_estimation_samples, r))
         plotting_dir = "out/vae/attacks/max_damage_attacks/"
-        plt.savefig(plotting_dir + "r_robustness_probability_max_damage_example_{}.png".format(image_index + 1), dpi=300)
+        plt.savefig(plotting_dir + "updated_r_robustness_probability_max_damage_example_{}.png".format(image_index + 1), dpi=300)
         plt.clf()
 
 def max_damage_attack_model(opt):

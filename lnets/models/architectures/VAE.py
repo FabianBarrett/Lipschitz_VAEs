@@ -140,7 +140,8 @@ class fcMNISTVAE(Architecture):
         noise.requires_grad_(True)
         x.requires_grad_(True)
 
-        noise = maximum_noise_norm * noise.div(noise.norm(p=2))
+        if noise.norm(p=2) > maximum_noise_norm:
+            noise = maximum_noise_norm * noise.div(noise.norm(p=2))
         noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
 
         original_reconstruction, _, _ = self.forward(x.view(-1, self.input_dim).float())
@@ -154,12 +155,16 @@ class fcMNISTVAE(Architecture):
 
     # BB: Code taken but adapted from Alex Camuto and Matthew Willetts
     # Uses attack in Eq. 5 of https://arxiv.org/pdf/1806.04646.pdf
-    def eval_latent_space_attack(self, x, target_x, noise, regularization_coefficient):
+    def eval_latent_space_attack(self, x, target_x, noise, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
         noise = torch.tensor(noise)
         x = torch.tensor(x)
         noise.requires_grad_(True)
         x.requires_grad_(True)
+
+        if not soft:
+            if noise.norm(p=2) > maximum_noise_norm:
+                noise = maximum_noise_norm * noise.div(noise.norm(p=2))
 
         noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
         _, noisy_mean, noisy_st_dev = self.forward(noisy_x.float())
@@ -168,7 +173,10 @@ class fcMNISTVAE(Architecture):
         noisy_z_distribution = ds.multivariate_normal.MultivariateNormal(noisy_mean, noisy_st_dev.pow(2).squeeze().diag())
         target_z_distribution = ds.multivariate_normal.MultivariateNormal(target_mean, target_st_dev.pow(2).squeeze().diag())
 
-        loss = ds.kl.kl_divergence(noisy_z_distribution, target_z_distribution) + regularization_coefficient * noise.norm(p=2).sum()
+        if soft:
+            loss = ds.kl.kl_divergence(noisy_z_distribution, target_z_distribution) + regularization_coefficient * noise.norm(p=2).sum()
+        else: 
+            loss = ds.kl.kl_divergence(noisy_z_distribution, target_z_distribution)
         gradient = torch.autograd.grad(loss, noise, retain_graph=True, create_graph=True)[0]
 
         return loss, gradient

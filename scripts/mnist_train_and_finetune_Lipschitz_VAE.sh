@@ -1,5 +1,5 @@
-l_constants=( 2.0 )
-saving_tag="continuous_bernoulli_st_dev"
+l_constants=( 5.0 10.0 )
+saving_tag="continuous_bernoulli_st_dev_better_convergence"
 for l_constant in "${l_constants[@]}"
 do
 	echo "Training model for Lipschitz constant $l_constant..."

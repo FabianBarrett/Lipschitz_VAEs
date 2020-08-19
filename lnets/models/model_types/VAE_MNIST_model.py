@@ -38,8 +38,12 @@ class VAEMNISTModel(ExperimentModel):
     def eval_max_damage_attack(self, x, noise, maximum_noise_norm):
         return self.model.eval_max_damage_attack(x, noise, maximum_noise_norm)
 
-    def eval_latent_space_attack(self, x, target_x, noise, regularization_coefficient):
-        return self.model.eval_latent_space_attack(x, target_x, noise, regularization_coefficient)
+    def eval_latent_space_attack(self, x, target_x, noise, soft=False, maximum_noise_norm=None, regularization_coefficient=None):
+        if soft:
+            return self.model.eval_latent_space_attack(x, target_x, noise, soft=soft, regularization_coefficient=regularization_coefficient)
+        else:
+            return self.model.eval_latent_space_attack(x, target_x, noise, soft=soft, maximum_noise_norm=maximum_noise_norm)
+        
 
     def add_to_meters(self, state):
         self.meters['loss'].add(state['loss'].item())

@@ -18,47 +18,57 @@ from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, get
 
 # BB: Note I haven't checked the internals of this thoroughly
 # BB: Taken but adapted from Alex Camuto and Matthew Willetts
-def latent_space_optimize_noise(model, config, image, target_image, initial_noise, regularization_coefficient):
+def latent_space_optimize_noise(model, config, image, target_image, initial_noise, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
-	adversarial_losses = []
+    adversarial_losses = []
 
-	def fmin_func(noise):
+    def fmin_func(noise):
 
-		loss, gradient = model.eval_latent_space_attack(image, target_image, noise, regularization_coefficient)
-		adversarial_losses.append(loss)
-		return float(loss.data.numpy()), gradient.data.numpy().flatten().astype(np.float64)
+        # BB: Soft determines whether latent space attack objective should be regularization_coefficient * norm of noise
+        if soft:
+          loss, gradient = model.eval_latent_space_attack(image, target_image, noise, soft=soft, regularization_coefficient=regularization_coefficient)
+        # BB: If not, use hard constraint on norm of noise (i.e. attack is limited to this norm)
+        else:
+            loss, gradient = model.eval_latent_space_attack(image, target_image, noise, soft=soft, maximum_noise_norm=maximum_noise_norm)
+        adversarial_losses.append(loss)
+        return float(loss.data.numpy()), gradient.data.numpy().flatten().astype(np.float64)
 
-	# BB: Bounds on the noise to ensure pixel values remain in interval [0, 1]
-	lower_limit = -image.data.numpy().flatten()
-	upper_limit = (1.0 - image.data.numpy().flatten())
+    # BB: Bounds on the noise to ensure pixel values remain in interval [0, 1]
+    lower_limit = -image.data.numpy().flatten()
+    upper_limit = (1.0 - image.data.numpy().flatten())
 
-	bounds = zip(lower_limit, upper_limit)
-	bounds = [sorted(y) for y in bounds]
+    bounds = zip(lower_limit, upper_limit)
+    bounds = [sorted(y) for y in bounds]
 
-	# BB: Optimizer to find adversarial noise
-	perturbed_image, _, _ = scipy.optimize.fmin_l_bfgs_b(fmin_func,
-                                                                  x0=initial_noise,
-                                                                  bounds=bounds,
-                                                                  m=25,
-                                                                  factr=10)
-	return (torch.tensor(perturbed_image).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
+    # BB: Optimizer to find adversarial noise
+    noise, _, _ = scipy.optimize.fmin_l_bfgs_b(fmin_func,
+                                               x0=initial_noise,
+                                               bounds=bounds,
+                                               m=25,
+                                               factr=10)
+    return (torch.tensor(noise).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
 
-def get_attack_images(model, config, original_image, target_image, initial_noise, regularization_coefficient):
+def get_attack_images(model, config, original_image, target_image, initial_noise, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
-    _, unperturbed_reconstruction = model.loss(original_image)
-    reshaped_unperturbed_reconstruction = unperturbed_reconstruction.view(1, 1, config.data.im_height, config.data.im_width)
-    perturbed_image, _ = latent_space_optimize_noise(model, config, original_image, target_image, initial_noise, regularization_coefficient)
-    _, perturbed_reconstruction = model.loss(perturbed_image)
-    reshaped_perturbed_reconstruction = perturbed_reconstruction.view(1, 1, config.data.im_height, config.data.im_width)
+    _, clean_reconstruction = model.loss(original_image)
+    reshaped_clean_reconstruction = clean_reconstruction.view(1, 1, config.data.im_height, config.data.im_width)
+    noise, _ = latent_space_optimize_noise(model, config, original_image, target_image, initial_noise, soft=soft, regularization_coefficient=regularization_coefficient, maximum_noise_norm=maximum_noise_norm)
+    if not soft:
+        noise = (maximum_noise_norm * noise.div(noise.norm(p=2))) if (noise.norm(p=2) > maximum_noise_norm) else noise
+    
+    noisy_image = original_image + noise.view(1, config.data.im_height, config.data.im_width)
+    _, noisy_reconstruction = model.loss(noisy_image)
+    reshaped_noisy_reconstruction = noisy_reconstruction.view(1, 1, config.data.im_height, config.data.im_width)
     image_compilation = torch.cat((original_image.unsqueeze(0), 
-                                   reshaped_unperturbed_reconstruction, 
-                                   perturbed_image, 
-                                   reshaped_perturbed_reconstruction, 
+                                   reshaped_clean_reconstruction, 
+                                   noise, 
+                                   noisy_image.unsqueeze(0), 
+                                   reshaped_noisy_reconstruction, 
                                    target_image.unsqueeze(0)), dim=-1)
     return image_compilation
 
 
-def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num_images, regularization_coefficient=1.0):
+def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num_images, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -76,21 +86,30 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
         initial_noise = np.random.uniform(-1e-8, 1e-8, size=(1, config.data.im_height, config.data.im_width)).astype(np.float32)
 
         # Perform adversarial attack and get related images
-        lipschitz_image_compilation = get_attack_images(lipschitz_model, config, original_image, target_image, initial_noise, regularization_coefficient)
-        comparison_image_compilation = get_attack_images(comparison_model, config, original_image, target_image, initial_noise, regularization_coefficient)
+        lipschitz_image_compilation = get_attack_images(lipschitz_model, config, original_image, target_image, initial_noise, soft=soft, regularization_coefficient=regularization_coefficient, maximum_noise_norm=maximum_noise_norm)
+        comparison_image_compilation = get_attack_images(comparison_model, config, original_image, target_image, initial_noise, soft=soft, regularization_coefficient=regularization_coefficient, maximum_noise_norm=maximum_noise_norm)
 
         # Plotting
         plt.imshow(lipschitz_image_compilation.detach().squeeze().numpy())
         plt.axis('off')
-        plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Attack coefficient: {}".format(regularization_coefficient) + "\n Left to right: Original image, original reconstruction, \n perturbed image, perturbed reconstruction, target")
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        plt.savefig(plotting_dir + "latent_attack_{}_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
+        image_caption = "\n Left to right: Original image, original reconstruction, \n noise, noisy image, noisy reconstruction, target image"
+        if soft:
+            plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Regularization coefficient: {}".format(regularization_coefficient) + image_caption)
+            plt.savefig(plotting_dir + "latent_attack_{}_soft_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
+        else:
+            plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Maximum noise norm: {}".format(maximum_noise_norm) + image_caption)
+            plt.savefig(plotting_dir + "latent_attack_{}_hard_lipschitz_{}_maximum_noise_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
 
         plt.imshow(comparison_image_compilation.detach().squeeze().numpy())
         plt.axis('off')
-        plt.title("Latent space attack on standard VAE" + "\n Attack coefficient: {}".format(regularization_coefficient) + "\n Left to right: Original image, original reconstruction, \n perturbed image, perturbed reconstruction, target")
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        plt.savefig(plotting_dir + "latent_attack_{}_comparison_for_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
+        if soft:
+            plt.title("Latent space attack on standard VAE" + "\n Regularization coefficient: {}".format(regularization_coefficient) + image_caption)
+            plt.savefig(plotting_dir + "latent_attack_{}_soft_comparison_for_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
+        else:
+            plt.title("Latent space attack on standard VAE" + "\n Maximum noise norm: {}".format(maximum_noise_norm) + image_caption)
+            plt.savefig(plotting_dir + "latent_attack_{}_hard_comparison_for_lipschitz_{}_maximum_noise_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
 
 
 def latent_attack_model(opt):
@@ -133,7 +152,7 @@ def latent_attack_model(opt):
     comparison_model.eval()
 
     print("Performing latent space attacks for Lipschitz constant {} with regularization coefficient {}...".format(lipschitz_model_config.model.encoder_mean.l_constant, opt['regularization_coefficient']))
-    latent_space_attack(orthonormalized_standard_model, comparison_model, lipschitz_model_config, data['test'], opt['num_images'], regularization_coefficient=opt['regularization_coefficient'])
+    latent_space_attack(orthonormalized_standard_model, comparison_model, lipschitz_model_config, data['test'], opt['num_images'], soft=opt['soft'], regularization_coefficient=opt['regularization_coefficient'], maximum_noise_norm=opt['maximum_noise_norm'])
 
 
 if __name__ == '__main__':
@@ -146,7 +165,9 @@ if __name__ == '__main__':
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
     parser.add_argument('--num_images', type=int, default=10, help='number of images to perform latent space attack on')
+    parser.add_argument('--soft', type=bool, default=False, help='whether latent attack should feature soft constraint on noise norm (hard constraint if False)')
     parser.add_argument('--regularization_coefficient', type=float, default=1.0, help='regularization coefficient to use in latent space attack')
+    parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
 
     args = vars(parser.parse_args())
 
