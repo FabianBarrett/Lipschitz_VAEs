@@ -104,7 +104,8 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
 # BB: I wonder whether instead of having a single attack applied multiple times one could run several attacks (i.e. 1 attack for each estimation_sample)
 def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, d_ball_init=True):
-    candidate_margins = np.arange(1e-6, max_R, 1e-2)
+    # BB: Remember to adjust (i.e. increase) the granularity when creating final plots
+    candidate_margins = np.arange(1e-6, max_R, 1e0)
     distances = []
     noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init)
     noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
@@ -120,7 +121,7 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, d_
     for candidate_margin in reversed(candidate_margins):
         distances = []
         noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init)
-        noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
+        noise = (candidate_margin * noise.div(noise.norm(p=2)))
         noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
         for _ in range(num_estimation_samples):
             _, clean_reconstruction = model.loss(image)
@@ -143,7 +144,6 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
         image_margins = []
         for image_index in tqdm(range(num_images)):
             original_image = attack_sample[0][image_index]
-            # print("Attacking image {} for model {}...".format(image_index + 1, model_index + 1))
             model = models[model_index]
             estimated_margin = estimate_R_margin(model, model_configs[0], original_image, max_R, num_estimation_samples, r, d_ball_init=d_ball_init)
             image_margins.append(estimated_margin)
@@ -153,15 +153,17 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
             # Note: This assumes the Lipschitz of the encoder and decoder are the same
             model_margins.append(("Lipschitz constant " + str(model_configs[model_index].model.encoder_mean.l_constant), image_margins))
 
-    ### REPLACE THIS PLOT WITH BAR PLOT FOR BETTER READABILITY (E.G. AVERAGE R-MARGIN) ###
+    histogram_bins = np.arange(1e-6, max_R, 1e0)
+
+    ### UPDATE TO INCLUDE THREE PLOTS VERTICALLY RATHER THAN OVERLAID PLOTS ###
     plt.clf()
     for margins in model_margins:
-        plt.plot(np.arange(1, num_images + 1), np.array(margins[1]), label=margins[0], marker='o', fillstyle='full', linestyle = 'None')
+        plt.hist(np.array(margins[1]), histogram_bins, label=margins[0], alpha=0.5)
     plt.legend()
-    plt.xlabel("Images (numbered)")
-    plt.ylabel(r"Estimated $R_\mathcal{X}^r(x)$")
+    plt.yticks([])
+    plt.ylabel("Frequency")
+    plt.xlabel(r"Estimated $R_\mathcal{X}^r(x)$")
     plt.title(r"Estimated $R_\mathcal{X}^r(x)$ for" + " r={}".format(r))
-    plt.ylim(0, max_R + 5)
     plotting_dir = "out/vae/attacks/R_margins/"
     if d_ball_init:
         plt.savefig(plotting_dir + "estimated_R_margins_d_ball_init.png", dpi=300)
@@ -243,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_max_damage_images', type=int, default=3, help='number of images to perform attack on')
     parser.add_argument('--num_R_margin_images', type=int, default=25, help='number of images to estimate R margin for')
     parser.add_argument('--num_estimation_samples', type=int, default=40, help='number of forward passes to use for estimating r / capital R')
-    parser.add_argument('--r', type=float, default=1.5, help='value of r to evaluate r-robustness probability for')
+    parser.add_argument('--r', type=float, default=5.0, help='value of r to evaluate r-robustness probability for')
     parser.add_argument('--max_R', type=float, default=15.0, help='maximum value of R to test for in estimating r-robustness margin')
     parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
     parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')    
