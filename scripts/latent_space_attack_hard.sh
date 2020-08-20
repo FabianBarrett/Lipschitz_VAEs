@@ -1,6 +1,6 @@
-l_constants=( 5.0 )
+l_constants=( 5.0 10.0 )
 saving_tag="continuous_bernoulli_st_dev_better_convergence"
-maximum_noise_norms=( 3.0 4.0 )
+maximum_noise_norms=( 5.0 )
 for l_constant in "${l_constants[@]}"
 do
 	for maximum_noise_norm in "${maximum_noise_norms[@]}"

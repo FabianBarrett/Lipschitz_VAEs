@@ -8,6 +8,16 @@ import torch.nn as nn
 from lnets.models.layers import BjorckLinear, DenseLinear, StandardLinear
 from lnets.utils.math.projections import bjorck_orthonormalize
 
+# Adapted from http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
+# BB: Note that this doesn't exactly sample uniformly from the interior of a ball with the specified radius (due to scaling at the end)
+def sample_d_ball(d, radius):
+    u = np.random.randn(d)
+    norm = (u ** 2).sum() ** 0.5
+    r = np.random.random() ** (1.0 / d)
+    sample = (r * u) / norm
+    scaling = np.random.uniform(1e-8, radius)
+    return scaling * sample
+
 def get_target_image(batch, input_class, input_index, num_images):
     image_counter = 0
     image_index = input_index + 1

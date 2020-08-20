@@ -13,12 +13,15 @@ from tqdm import tqdm
 from lnets.models import get_model
 from lnets.data.load_data import load_data
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
-from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings
+from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, sample_d_ball
 
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
-def max_damage_optimize_noise(model, config, image, maximum_noise_norm):
+def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True):
 
-    initial_noise = np.random.uniform(-1e-8, 1e-8, size=(1, config.data.im_height, config.data.im_width)).astype(np.float32)
+    if d_ball_init:
+        initial_noise = sample_d_ball(config.data.im_height * config.data.im_width, maximum_noise_norm).reshape((1, config.data.im_height, config.data.im_width)).astype(np.float32)
+    else:
+        initial_noise = np.random.uniform(-1e-8, 1e-8, size=(1, config.data.im_height, config.data.im_width)).astype(np.float32)
 
     adversarial_losses = []
 
@@ -46,7 +49,7 @@ def max_damage_optimize_noise(model, config, image, maximum_noise_norm):
     return (torch.tensor(noise).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
 
 # BB: Note the following is to be extended / built upon (i.e. further plots to come)
-def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num_images, num_estimation_samples, r):
+def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num_images, num_estimation_samples, r, d_ball_init=True):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -68,7 +71,7 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
                 # BB: Return and check that it makes sense to be re-computing the adversarial noise
                 for sample_index in tqdm(range(num_estimation_samples)):
                     _, clean_reconstruction = model.loss(original_image)
-                    noise, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm)
+                    noise, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm, d_ball_init=d_ball_init)
                     noise = (maximum_noise_norm * noise.div(noise.norm(p=2)))
                     noisy_image = original_image + noise.view(1, model_configs[0].data.im_height, model_configs[0].data.im_width)
                     _, noisy_reconstruction = model.loss(noisy_image)
@@ -91,7 +94,11 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
         plt.ylim(bottom=0.0, top=1.2)
         plt.title("Max damage attacks on image {}".format(image_index + 1) + "\n (Estimated using {} samples for r={})".format(num_estimation_samples, r))
         plotting_dir = "out/vae/attacks/max_damage_attacks/"
-        plt.savefig(plotting_dir + "updated_r_robustness_probability_max_damage_example_{}.png".format(image_index + 1), dpi=300)
+        if d_ball_init:
+            saving_string = "updated_r_robustness_probability_max_damage_example_{}_d_ball_init.png".format(image_index + 1)
+        else:
+            saving_string = "updated_r_robustness_probability_max_damage_example_{}_standard_init.png".format(image_index + 1)
+        plt.savefig(plotting_dir + saving_string, dpi=300)
         plt.clf()
 
 def max_damage_attack_model(opt):
@@ -149,7 +156,7 @@ def max_damage_attack_model(opt):
     orthonormalized_models.append(comparison_model)
     model_configs.append(comparison_model_config)
 
-    get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_images'], opt['num_estimation_samples'], opt['r'])
+    get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_images'], opt['num_estimation_samples'], opt['r'], d_ball_init=opt['d_ball_init'])
 
 
 if __name__ == '__main__':
@@ -163,9 +170,10 @@ if __name__ == '__main__':
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
     parser.add_argument('--num_images', type=int, default=3, help='number of images to perform latent space attack on')
-    parser.add_argument('--num_estimation_samples', type=int, default=20, help='number of forward passes to use for estimating r / capital R') ### CHANGE THIS BACK ###
+    parser.add_argument('--num_estimation_samples', type=int, default=40, help='number of forward passes to use for estimating r / capital R')
     parser.add_argument('--r', type=float, default=10.0, help='value of r to evaluate r-robustness probability for')
     parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
+    parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')    
 
     args = vars(parser.parse_args())
 

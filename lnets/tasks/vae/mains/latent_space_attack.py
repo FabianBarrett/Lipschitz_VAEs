@@ -14,7 +14,7 @@ import os
 from lnets.models import get_model
 from lnets.data.load_data import load_data
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
-from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, get_target_image
+from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, get_target_image, sample_d_ball
 
 # BB: Note I haven't checked the internals of this thoroughly
 # BB: Taken but adapted from Alex Camuto and Matthew Willetts
@@ -68,7 +68,7 @@ def get_attack_images(model, config, original_image, target_image, initial_noise
     return image_compilation
 
 
-def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num_images, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
+def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num_images, d_ball_init=True, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -82,8 +82,13 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
         original_image, original_class = attack_sample[0][index], attack_sample[1][index]
         target_image, target_class = get_target_image(attack_sample, original_class, index, num_images)
 
-        # Sample initial noise for adversarial attack (same noise for both Lipschitz and comparison model)
-        initial_noise = np.random.uniform(-1e-8, 1e-8, size=(1, config.data.im_height, config.data.im_width)).astype(np.float32)
+        if d_ball_init:
+            # Sample initial noise for adversarial attack (same noise for both Lipschitz and comparison model)
+            initial_noise = sample_d_ball(config.data.im_height * config.data.im_width, maximum_noise_norm).reshape((1, config.data.im_height, config.data.im_width)).astype(np.float32)
+
+        else:
+            # Sample initial noise for adversarial attack (same noise for both Lipschitz and comparison model)
+            initial_noise = np.random.uniform(-1e-8, 1e-8, size=(1, config.data.im_height, config.data.im_width)).astype(np.float32)
 
         # Perform adversarial attack and get related images
         lipschitz_image_compilation = get_attack_images(lipschitz_model, config, original_image, target_image, initial_noise, soft=soft, regularization_coefficient=regularization_coefficient, maximum_noise_norm=maximum_noise_norm)
@@ -152,7 +157,7 @@ def latent_attack_model(opt):
     comparison_model.eval()
 
     print("Performing latent space attacks for Lipschitz constant {} with regularization coefficient {}...".format(lipschitz_model_config.model.encoder_mean.l_constant, opt['regularization_coefficient']))
-    latent_space_attack(orthonormalized_standard_model, comparison_model, lipschitz_model_config, data['test'], opt['num_images'], soft=opt['soft'], regularization_coefficient=opt['regularization_coefficient'], maximum_noise_norm=opt['maximum_noise_norm'])
+    latent_space_attack(orthonormalized_standard_model, comparison_model, lipschitz_model_config, data['test'], opt['num_images'], d_ball_init=opt['d_ball_init'], soft=opt['soft'], regularization_coefficient=opt['regularization_coefficient'], maximum_noise_norm=opt['maximum_noise_norm'])
 
 
 if __name__ == '__main__':
@@ -166,6 +171,7 @@ if __name__ == '__main__':
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
     parser.add_argument('--num_images', type=int, default=10, help='number of images to perform latent space attack on')
     parser.add_argument('--soft', type=bool, default=False, help='whether latent attack should feature soft constraint on noise norm (hard constraint if False)')
+    parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')    
     parser.add_argument('--regularization_coefficient', type=float, default=1.0, help='regularization coefficient to use in latent space attack')
     parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
 
