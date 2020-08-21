@@ -17,8 +17,11 @@ def solve_bound_inequality(a, b, c, r, st_dev_norm):
 
 # Accepts sympy Interval object as input
 def process_bound_inequality_result(bound_inequality_result):
-    if isinstance(bound_inequality_result[0], Interval):
-        return bound_inequality_result.end
+    # If there is no value satisfying the bound (sympy returns empty list)
+    if not bound_inequality_result:
+        return 0.0
+    elif isinstance(bound_inequality_result[0], Interval):
+        return bound_inequality_result[0].end
     elif isinstance(bound_inequality_result[0], FiniteSet):
         values = [element for element in bound_inequality_result[0]]
         return max(values)
