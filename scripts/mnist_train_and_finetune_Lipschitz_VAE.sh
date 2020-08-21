@@ -1,4 +1,4 @@
-l_constants=( 5.0 10.0 )
+l_constants=( 6.0 7.0 8.0 9.0 )
 saving_tag="continuous_bernoulli_st_dev_better_convergence"
 for l_constant in "${l_constants[@]}"
 do

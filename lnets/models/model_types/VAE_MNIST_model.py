@@ -12,9 +12,11 @@ class VAEMNISTModel(ExperimentModel):
     def _init_meters(self):
         super(VAEMNISTModel, self)._init_meters()
 
-    def loss(self, sample, test=False, check_likelihood=False, continuous_bernoulli=True):
+    def loss(self, sample, test=False, check_likelihood=False, continuous_bernoulli=True, get_encoder_st_dev=False):
         inputs = Variable(sample[0], volatile=test)
         reconstructions, encoder_mean, encoder_st_dev = self.model.forward(inputs)
+        if get_encoder_st_dev:
+            return encoder_st_dev
         reshaped_inputs = inputs.reshape(reconstructions.shape)
         KL_term = 0.5 * (1.0 + encoder_st_dev.pow(2).log() - encoder_mean.pow(2) - encoder_st_dev.pow(2)).sum()
         if continuous_bernoulli:

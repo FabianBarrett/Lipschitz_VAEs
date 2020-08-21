@@ -7,13 +7,14 @@ import torch
 import scipy.optimize
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import os
 from tqdm import tqdm
 
 from lnets.models import get_model
 from lnets.data.load_data import load_data
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
-from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, sample_d_ball
+from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, sample_d_ball, solve_bound_inequality, process_bound_inequality_result
 
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
 def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True):
@@ -103,9 +104,9 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
 
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
 # BB: I wonder whether instead of having a single attack applied multiple times one could run several attacks (i.e. 1 attack for each estimation_sample)
-def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, d_ball_init=True):
+def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, margin_granularity, d_ball_init=True):
     # BB: Remember to adjust (i.e. increase) the granularity when creating final plots
-    candidate_margins = np.arange(1e-6, max_R, 1e0)
+    candidate_margins = np.arange(1e-6, max_R, margin_granularity)
     distances = []
     noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init)
     noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
@@ -133,7 +134,7 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, d_
             return candidate_margin
     raise RuntimeError("Did not find R margin such that r-robustness was satisfied.")
 
-def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, d_ball_init=True):
+def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, margin_granularity, d_ball_init=True):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -142,34 +143,70 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
     print("Estimating r-robustness margins...")
     for model_index in range(len(models)):
         image_margins = []
+        bound_margins = []
         for image_index in tqdm(range(num_images)):
             original_image = attack_sample[0][image_index]
             model = models[model_index]
-            estimated_margin = estimate_R_margin(model, model_configs[0], original_image, max_R, num_estimation_samples, r, d_ball_init=d_ball_init)
+            estimated_margin = estimate_R_margin(model, model_configs[0], original_image, max_R, num_estimation_samples, r, margin_granularity, d_ball_init=d_ball_init)
             image_margins.append(estimated_margin)
+            encoder_st_dev = models[model_index].loss(original_image, get_encoder_st_dev=True)
+            bound_inequality_result = solve_bound_inequality(model_configs[model_index].model.decoder.l_constant, 
+                                                             model_configs[model_index].model.encoder_mean.l_constant, 
+                                                             model_configs[model_index].model.encoder_st_dev.l_constant, 
+                                                             r, encoder_st_dev.norm(p=2))
+            print("Processed bound inequality: {}".format(process_bound_inequality_result(bound_inequality_result)))
+            bound_margins.append(process_bound_inequality_result(bound_inequality_result))
         if model_configs[model_index].model.linear.type == "standard":
-            model_margins.append(("Standard VAE", image_margins))
+            model_margins.append(("Standard VAE", image_margins, bound_margins))
         else:
             # Note: This assumes the Lipschitz of the encoder and decoder are the same
-            model_margins.append(("Lipschitz constant " + str(model_configs[model_index].model.encoder_mean.l_constant), image_margins))
+            model_margins.append(("Lipschitz constant " + str(model_configs[model_index].model.encoder_mean.l_constant), image_margins, bound_margins))
 
-    histogram_bins = np.arange(1e-6, max_R, 1e0)
-
-    ### UPDATE TO INCLUDE THREE PLOTS VERTICALLY RATHER THAN OVERLAID PLOTS ###
-    plt.clf()
+    histogram_bins = np.arange(1e-6, max_R, margin_granularity)
+    max_frequency = -1
     for margins in model_margins:
-        plt.hist(np.array(margins[1]), histogram_bins, label=margins[0], alpha=0.5)
-    plt.legend()
-    plt.yticks([])
-    plt.ylabel("Frequency")
-    plt.xlabel(r"Estimated $R_\mathcal{X}^r(x)$")
-    plt.title(r"Estimated $R_\mathcal{X}^r(x)$ for" + " r={}".format(r))
-    plotting_dir = "out/vae/attacks/R_margins/"
-    if d_ball_init:
-        plt.savefig(plotting_dir + "estimated_R_margins_d_ball_init.png", dpi=300)
-    else:
-        plt.savefig(plotting_dir + "estimated_R_margins_standard_init.png", dpi=300)
+        if max_frequency < max(margins[1]):
+            max_frequency = max(margins[1])
+
+    colors = [color for color in mcolors.TABLEAU_COLORS][:len(models)]
+
+    # # Generate histograms of R margins w.r.t. model type
+    # plt.clf()
+    # fig, ax = plt.subplots(len(models), 1, figsize=(6, len(models) + 4))
+    # for model_index in range(len(models)):
+    #     ax[model_index].hist(np.array(model_margins[model_index][1]), histogram_bins, label=model_margins[model_index][0], color=colors[model_index])
+    #     ax[model_index].set_yticks([])
+    #     ax[model_index].set_ylim([0, max_frequency + 2])
+    #     ax[model_index].set_ylabel("Frequency")
+    #     if model_index == (len(models) - 1):
+    #         ax[model_index].set_xlabel(r"Estimated $R_\mathcal{X}^r(x)$")
+    #     else:
+    #         ax[model_index].set_xticks([])
+    #         ax[model_index].set_xlabel("")
+    #     ax[model_index].legend()
+    # fig.suptitle(r"Estimated $R_\mathcal{X}^r(x)$ for" + " r={}".format(r))
+    # plotting_dir = "out/vae/attacks/R_margins/"
+    # if d_ball_init:
+    #     fig.savefig(plotting_dir + "estimated_R_margins_d_ball_init.png", dpi=300)
+    # else:
+    #     fig.savefig(plotting_dir + "estimated_R_margins_standard_init.png", dpi=300)
+    
+    # Plot estimated R margins against margin implied by Markov bound
     plt.clf()
+    for model_index in range(len(models)):
+        max_value = max(max(model_margins[model_index][2]), max(model_margins[model_index][1]))
+        plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[model_index], linestyle='None')
+        plt.plot(np.linspace(0, max_value), np.linspace(0, max_value), color='black')
+        plt.xlabel(r"$R_\mathcal{X}^r(x)$ bound")
+        plt.ylabel(r"Estimated $R_\mathcal{X}^r(x)$")
+        plt.title(r"Estimated $R_\mathcal{X}^r(x)$ vs. $R_\mathcal{X}^r(x)$ bound for" + " r={}".format(r))
+        if "Lipschitz" in model_margins[model_index][0]:
+            saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant))
+        else: 
+            saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_standard.png"
+        plt.savefig(plotting_dir + saving_name, dpi=300)
+    plt.clf()
+
 
 def max_damage_attack_model(opt):
 
@@ -230,7 +267,7 @@ def max_damage_attack_model(opt):
     # get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], d_ball_init=opt['d_ball_init'])
 
     # Inspect estimated R margin w.r.t. model
-    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], d_ball_init=opt['d_ball_init'])
+    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], d_ball_init=opt['d_ball_init'])
 
 if __name__ == '__main__':
 
@@ -243,12 +280,13 @@ if __name__ == '__main__':
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
     parser.add_argument('--num_max_damage_images', type=int, default=3, help='number of images to perform attack on')
-    parser.add_argument('--num_R_margin_images', type=int, default=25, help='number of images to estimate R margin for')
+    parser.add_argument('--num_R_margin_images', type=int, default=5, help='number of images to estimate R margin for')
     parser.add_argument('--num_estimation_samples', type=int, default=40, help='number of forward passes to use for estimating r / capital R')
-    parser.add_argument('--r', type=float, default=5.0, help='value of r to evaluate r-robustness probability for')
+    parser.add_argument('--r', type=float, default=8.0, help='value of r to evaluate r-robustness probability for')
     parser.add_argument('--max_R', type=float, default=15.0, help='maximum value of R to test for in estimating r-robustness margin')
     parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
     parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')    
+    parser.add_argument('--margin_granularity', type=float, default=0.5, help='spacing between candidate R margins (smaller gives more exact estimate for more computation)')
 
     args = vars(parser.parse_args())
 

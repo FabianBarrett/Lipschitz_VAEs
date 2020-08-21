@@ -20,5 +20,5 @@ setup(name='lnets',
       packages=find_packages(exclude=['tests*']),
       setup_requires=["cython", "numpy", "torch", "torchvision"],
       install_requires=["numpy", "scipy", "cython", "matplotlib", "jupyter", "POT", "scikit-learn", "tqdm", "munch",
-                        "pytest", "torchnet", "foolbox", "imageio"],
+                        "pytest", "torchnet", "foolbox", "imageio", "sympy", "mpmath"],
       )

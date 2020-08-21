@@ -1,5 +1,4 @@
 # BB: Written starting July 26
-
 import matplotlib.pyplot as plt
 import os
 import numpy as np
@@ -7,6 +6,24 @@ import torch
 import torch.nn as nn
 from lnets.models.layers import BjorckLinear, DenseLinear, StandardLinear
 from lnets.utils.math.projections import bjorck_orthonormalize
+from sympy.abc import x
+from sympy import Poly, Interval, FiniteSet
+from sympy.solvers.inequalities import solve_poly_inequality
+
+# Note: Assumes inequality is in form expression <= 0
+def solve_bound_inequality(a, b, c, r, st_dev_norm):
+    expression = (c ** 2 + b ** 2) * x ** 2 + 4 * c * st_dev_norm * x + (4 * st_dev_norm ** 2 - 0.5 * (r ** 2 / a ** 2))
+    return solve_poly_inequality(Poly(expression), '<=')
+
+# Accepts sympy Interval object as input
+def process_bound_inequality_result(bound_inequality_result):
+    if isinstance(bound_inequality_result[0], Interval):
+        return bound_inequality_result.end
+    elif isinstance(bound_inequality_result[0], FiniteSet):
+        values = [element for element in bound_inequality_result[0]]
+        return max(values)
+    else:
+        raise RuntimeError("Inequality result type not recognized.")
 
 # Adapted from http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
 # BB: Note that this doesn't exactly sample uniformly from the interior of a ball with the specified radius (due to scaling at the end)
