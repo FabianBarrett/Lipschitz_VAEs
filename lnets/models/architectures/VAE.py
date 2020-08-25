@@ -133,15 +133,19 @@ class fcMNISTVAE(Architecture):
 
     # BB: Code taken but slightly adapted from Alex Camuto and Matthew Willetts
     # Note: maximum_noise_norm defines maximum radius of ball induced by noise around datapoint
-    def eval_max_damage_attack(self, x, noise, maximum_noise_norm):
+    # If not scale, then clipping (i.e. upper bound on norm rather than tight constraint)
+    def eval_max_damage_attack(self, x, noise, maximum_noise_norm, scale=False):
 
         noise = torch.tensor(noise)
         x = torch.tensor(x)
         noise.requires_grad_(True)
         x.requires_grad_(True)
 
-        if noise.norm(p=2) > maximum_noise_norm:
+        if scale:
             noise = maximum_noise_norm * noise.div(noise.norm(p=2))
+        else:
+            if noise.norm(p=2) > maximum_noise_norm:
+                noise = maximum_noise_norm * noise.div(noise.norm(p=2))
         noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
 
         original_reconstruction, _, _ = self.forward(x.view(-1, self.input_dim).float())

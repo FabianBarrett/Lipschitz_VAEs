@@ -17,7 +17,7 @@ from lnets.models.utils.conversion import convert_VAE_from_bjorck
 from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, sample_d_ball, solve_bound_inequality, process_bound_inequality_result
 
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
-def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True):
+def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True, scale=False):
 
     if d_ball_init:
         initial_noise = sample_d_ball(config.data.im_height * config.data.im_width, maximum_noise_norm).reshape((1, config.data.im_height, config.data.im_width)).astype(np.float32)
@@ -28,7 +28,7 @@ def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_i
 
     def fmin_func(noise):
 
-        loss, gradient = model.eval_max_damage_attack(image, noise, maximum_noise_norm)
+        loss, gradient = model.eval_max_damage_attack(image, noise, maximum_noise_norm, scale=scale)
         adversarial_losses.append(loss)
         return float(loss.data.numpy()), gradient.data.numpy().flatten().astype(np.float64)
 
@@ -70,8 +70,9 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
             for noise_norm in noise_norms:
                 distances = []
                 for random_init in tqdm(range(num_random_inits)):
-                    noise, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm, d_ball_init=d_ball_init)
-                    noise = (maximum_noise_norm * noise.div(noise.norm(p=2)))
+                    noise, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm, d_ball_init=d_ball_init, scale=False)
+                    if noise.norm(p=2) > maximum_noise_norm:
+                        noise = maximum_noise_norm * noise.div(noise.norm(p=2))
                     noisy_image = original_image + noise.view(1, model_configs[0].data.im_height, model_configs[0].data.im_width)
                     for sample_index in range(num_estimation_samples):
                         _, clean_reconstruction = model.loss(original_image)
@@ -112,7 +113,7 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, ma
     candidate_margins = np.arange(1e-6, max_R, margin_granularity)
     distances = []
     for random_init in range(num_random_inits):
-        noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init)
+        noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init, scale=True)
         noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
         noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
         for _ in range(num_estimation_samples):
@@ -126,7 +127,7 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, ma
     for candidate_margin in reversed(candidate_margins):
         distances = []
         for random_init in range(num_random_inits):
-            noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init)
+            noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init, scale=True)
             noise = (candidate_margin * noise.div(noise.norm(p=2)))
             noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
             for _ in range(num_estimation_samples):
