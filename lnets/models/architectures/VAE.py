@@ -9,7 +9,7 @@ from lnets.models.utils import *
 from lnets.models.architectures.base_architecture import Architecture
 
 class fcMNISTVAE(Architecture):
-    def __init__(self, encoder_mean_layers, encoder_st_dev_layers, decoder_layers, input_dim, latent_dim, linear_type, activation, bias=True, config=None, dropout=False):
+    def __init__(self, encoder_mean_layers, encoder_std_dev_layers, decoder_layers, input_dim, latent_dim, linear_type, activation, bias=True, config=None, dropout=False):
         super(fcMNISTVAE, self).__init__()
         self.config = config
 
@@ -21,17 +21,17 @@ class fcMNISTVAE(Architecture):
 
         self.encoder_mean_layer_sizes = encoder_mean_layers.copy()
         self.encoder_mean_layer_sizes.insert(0, self.input_dim)  # For bookkeeping purposes.
-        self.encoder_st_dev_layer_sizes = encoder_st_dev_layers.copy()
-        self.encoder_st_dev_layer_sizes.insert(0, self.input_dim)  # For bookkeeping purposes.
+        self.encoder_std_dev_layer_sizes = encoder_std_dev_layers.copy()
+        self.encoder_std_dev_layer_sizes.insert(0, self.input_dim)  # For bookkeeping purposes.
         self.decoder_layer_sizes = decoder_layers.copy()
         self.decoder_layer_sizes.insert(0, self.latent_dim) # For bookkeeping purposes.
 
         self.encoder_mean_l_constant = self.config.model.encoder_mean.l_constant
-        self.encoder_st_dev_l_constant = self.config.model.encoder_st_dev.l_constant
+        self.encoder_std_dev_l_constant = self.config.model.encoder_std_dev.l_constant
         self.decoder_l_constant = self.config.model.decoder.l_constant
         
         self.encoder_mean_num_layers = len(self.encoder_mean_layer_sizes)
-        self.encoder_st_dev_num_layers = len(self.encoder_st_dev_layer_sizes)
+        self.encoder_std_dev_num_layers = len(self.encoder_std_dev_layer_sizes)
         self.decoder_num_layers = len(self.decoder_layer_sizes)
 
         # Select activation function and grouping.
@@ -41,9 +41,9 @@ class fcMNISTVAE(Architecture):
             self.encoder_mean_groupings = self.config.model.encoder_mean.groupings
             self.encoder_mean_groupings.insert(0, -1)  # For easier bookkeeping later on.
 
-        if 'groupings' in self.config.model.encoder_st_dev:
-            self.encoder_st_dev_groupings = self.config.model.encoder_st_dev.groupings
-            self.encoder_st_dev_groupings.insert(0, -1)  # For easier bookkeeping later on.  
+        if 'groupings' in self.config.model.encoder_std_dev:
+            self.encoder_std_dev_groupings = self.config.model.encoder_std_dev.groupings
+            self.encoder_std_dev_groupings.insert(0, -1)  # For easier bookkeeping later on.  
 
         if 'groupings' in self.config.model.decoder:
             self.decoder_groupings = self.config.model.decoder.groupings
@@ -59,10 +59,10 @@ class fcMNISTVAE(Architecture):
                                              config=config, dropout=dropout, function='encoder_mean')
         self.encoder_mean = nn.Sequential(*encoder_mean_layers)
 
-        encoder_st_dev_layers = self._get_sequential_layers(activation=activation,
-                                             l_constant_per_layer=self.encoder_st_dev_l_constant ** (1.0 / (self.encoder_st_dev_num_layers - 1)),
-                                             config=config, dropout=dropout, function='encoder_st_dev')
-        self.encoder_st_dev = nn.Sequential(*encoder_st_dev_layers)
+        encoder_std_dev_layers = self._get_sequential_layers(activation=activation,
+                                             l_constant_per_layer=self.encoder_std_dev_l_constant ** (1.0 / (self.encoder_std_dev_num_layers - 1)),
+                                             config=config, dropout=dropout, function='encoder_std_dev')
+        self.encoder_std_dev = nn.Sequential(*encoder_std_dev_layers)
         
         decoder_layers = self._get_sequential_layers(activation=activation,
                                              l_constant_per_layer=self.decoder_l_constant ** (1.0 / (self.decoder_num_layers - 1)),
@@ -74,9 +74,9 @@ class fcMNISTVAE(Architecture):
     def forward(self, x):
         x = x.view(-1, self.input_dim)
         encoder_mean = self.encoder_mean(x)
-        encoder_st_dev = self.encoder_st_dev(x)
-        z = encoder_mean + encoder_st_dev * self.standard_normal.sample(encoder_mean.shape)
-        return self.decoder(z), encoder_mean, encoder_st_dev
+        encoder_std_dev = self.encoder_std_dev(x)
+        z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
+        return self.decoder(z), encoder_mean, encoder_std_dev
 
 
     def _get_sequential_layers(self, activation, l_constant_per_layer, config, dropout=False, function=None):
@@ -123,9 +123,9 @@ class fcMNISTVAE(Architecture):
             if hasattr(self.encoder_mean[i], 'project_weights'):
                 self.encoder_mean[i].project_weights(proj_config)
 
-        for i, layer in enumerate(self.encoder_st_dev):
-            if hasattr(self.encoder_st_dev[i], 'project_weights'):
-                self.encoder_st_dev[i].project_weights(proj_config)
+        for i, layer in enumerate(self.encoder_std_dev):
+            if hasattr(self.encoder_std_dev[i], 'project_weights'):
+                self.encoder_std_dev[i].project_weights(proj_config)
 
         for i, layer in enumerate(self.decoder):
             if hasattr(self.decoder[i], 'project_weights'):
@@ -167,11 +167,11 @@ class fcMNISTVAE(Architecture):
                 noise = maximum_noise_norm * noise.div(noise.norm(p=2))
 
         noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
-        _, noisy_mean, noisy_st_dev = self.forward(noisy_x.float())
-        _, target_mean, target_st_dev = self.forward(target_x.view(-1, self.input_dim).float())
+        _, noisy_mean, noisy_std_dev = self.forward(noisy_x.float())
+        _, target_mean, target_std_dev = self.forward(target_x.view(-1, self.input_dim).float())
 
-        noisy_z_distribution = ds.multivariate_normal.MultivariateNormal(noisy_mean, noisy_st_dev.pow(2).squeeze().diag())
-        target_z_distribution = ds.multivariate_normal.MultivariateNormal(target_mean, target_st_dev.pow(2).squeeze().diag())
+        noisy_z_distribution = ds.multivariate_normal.MultivariateNormal(noisy_mean, noisy_std_dev.pow(2).squeeze().diag())
+        target_z_distribution = ds.multivariate_normal.MultivariateNormal(target_mean, target_std_dev.pow(2).squeeze().diag())
 
         if soft:
             loss = ds.kl.kl_divergence(noisy_z_distribution, target_z_distribution) + regularization_coefficient * noise.norm(p=2).sum()

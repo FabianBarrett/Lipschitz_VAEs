@@ -38,7 +38,7 @@ def load_conv_dual(config):
 # BB: VAEs
 @register_model('ELBO_fcMNISTVAE')
 def load_ELBO_fcMNISTVAE(config):
-    model = fcMNISTVAE(config.model.encoder_mean.layers, config.model.encoder_st_dev.layers, config.model.decoder.layers, config.data.input_dim, 
+    model = fcMNISTVAE(config.model.encoder_mean.layers, config.model.encoder_std_dev.layers, config.model.decoder.layers, config.data.input_dim, 
                         config.model.latent_dim, config.model.linear.type, config.model.activation, bias=config.model.linear.bias, config=config)
     return VAEMNISTModel(model)
 

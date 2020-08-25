@@ -11,8 +11,8 @@ from sympy import Poly, Interval, FiniteSet
 from sympy.solvers.inequalities import solve_poly_inequality
 
 # Note: Assumes inequality is in form expression <= 0
-def solve_bound_inequality(a, b, c, r, st_dev_norm):
-    expression = (c ** 2 + b ** 2) * x ** 2 + 4 * c * st_dev_norm * x + (4 * st_dev_norm ** 2 - 0.5 * (r ** 2 / a ** 2))
+def solve_bound_inequality(a, b, c, r, std_dev_norm):
+    expression = (c ** 2 + b ** 2) * x ** 2 + 4 * c * std_dev_norm * x + (4 * std_dev_norm ** 2 - 0.5 * (r ** 2 / a ** 2))
     return solve_poly_inequality(Poly(expression), '<=')
 
 # Accepts sympy Interval object as input
@@ -55,8 +55,8 @@ def fix_groupings(config):
     if 'groupings' in config.model.encoder_mean and config.model.encoder_mean.groupings[0] is -1:
         config.model.encoder_mean.groupings = config.model.encoder_mean.groupings[1:]
 
-    if 'groupings' in config.model.encoder_st_dev and config.model.encoder_st_dev.groupings[0] is -1:
-        config.model.encoder_st_dev.groupings = config.model.encoder_st_dev.groupings[1:]
+    if 'groupings' in config.model.encoder_std_dev and config.model.encoder_std_dev.groupings[0] is -1:
+        config.model.encoder_std_dev.groupings = config.model.encoder_std_dev.groupings[1:]
 
     if 'groupings' in config.model.decoder and config.model.decoder.groupings[0] is -1:
         config.model.decoder.groupings = config.model.decoder.groupings[1:]
@@ -109,8 +109,8 @@ def orthonormalize_model(model, model_config, iters=20):
 
     encoder_mean_list = orthonormalize_layers(list(model.model.encoder_mean.children()), model_config, iters)
     model.model.encoder_mean = nn.Sequential(*encoder_mean_list)
-    encoder_st_dev_list = orthonormalize_layers(list(model.model.encoder_st_dev.children()), model_config, iters)
-    model.model.encoder_st_dev = nn.Sequential(*encoder_st_dev_list)
+    encoder_std_dev_list = orthonormalize_layers(list(model.model.encoder_std_dev.children()), model_config, iters)
+    model.model.encoder_std_dev = nn.Sequential(*encoder_std_dev_list)
     decoder_list = orthonormalize_layers(list(model.model.decoder.children()), model_config, iters)
     model.model.decoder = nn.Sequential(*decoder_list)
 
@@ -135,8 +135,8 @@ def check_VAE_singular_values(model):
     check_module_singular_values(encoder_mean_list)
 
     print("Checking singular values of layers in the encoder st. dev....")
-    encoder_st_dev_list = list(model.model.encoder_st_dev.children())
-    check_module_singular_values(encoder_st_dev_list)
+    encoder_std_dev_list = list(model.model.encoder_std_dev.children())
+    check_module_singular_values(encoder_std_dev_list)
 
     print("Checking singular values of layers in the decoder...")
     decoder_list = list(model.model.decoder.children())
@@ -165,8 +165,8 @@ def check_VAE_orthonormality(model, tol=1e-2, verbose=False):
     check_module_orthonormality(encoder_mean_list, tol, verbose)
 
     print("Checking orthonormality of layers in the encoder st. dev. at tolerance {}...".format(tol))
-    encoder_st_dev_list = list(model.model.encoder_st_dev.children())
-    check_module_orthonormality(encoder_st_dev_list, tol, verbose)
+    encoder_std_dev_list = list(model.model.encoder_std_dev.children())
+    check_module_orthonormality(encoder_std_dev_list, tol, verbose)
 
     print("Checking orthonormality of layers in the decoder at tolerance {}...".format(tol))
     decoder_list = list(model.model.decoder.children())

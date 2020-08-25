@@ -22,7 +22,7 @@
         "layers": [
           512, 
           512, 
-          10
+          2
         ],
         "groupings": [
           2, 
@@ -30,12 +30,12 @@
           1
         ]
       },
-      "encoder_st_dev": {
+      "encoder_std_dev": {
         "l_constant": 1.0, 
         "layers": [
           512,
           512, 
-          10
+          2
         ], 
         "groupings": [
           2, 
@@ -55,7 +55,7 @@
           2,
           1]
       }, 
-      "latent_dim": 10,
+      "latent_dim": 2,
       "per_epoch_proj": {
         "turned_on": false,
         "every_n_epochs": 1,

@@ -1,5 +1,5 @@
 l_constants=( 5.0 )
-saving_tag="continuous_bernoulli_st_dev"
+saving_tag="continuous_bernoulli_std_dev"
 for l_constant in "${l_constants[@]}"
 do
 	echo "Checking properties of VAE with Lipschitz constant $l_constant..."

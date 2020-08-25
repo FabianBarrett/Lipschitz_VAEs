@@ -30,7 +30,7 @@
           1
         ]
       },
-      "encoder_st_dev": {
+      "encoder_std_dev": {
         "l_constant": 2.0, 
         "layers": [
           512,

@@ -54,8 +54,8 @@ def convert_model_from_bjorck(model, config):
 def convert_VAE_to_bjorck(model, config):
     encoder_mean_list = convert_to_bjorck_module(list(model.model.encoder_mean.children()), config)
     model.model.encoder_mean = nn.Sequential(*encoder_mean_list)
-    encoder_st_dev_list = convert_to_bjorck_module(list(model.model.encoder_st_dev.children()), config)
-    model.model.encoder_st_dev = nn.Sequential(*encoder_st_dev_list)
+    encoder_std_dev_list = convert_to_bjorck_module(list(model.model.encoder_std_dev.children()), config)
+    model.model.encoder_std_dev = nn.Sequential(*encoder_std_dev_list)
     decoder_list = convert_to_bjorck_module(list(model.model.decoder.children()), config)
     model.model.decoder = nn.Sequential(*decoder_list)
 
@@ -65,8 +65,8 @@ def convert_VAE_from_bjorck(model, config):
 
     encoder_mean_list = convert_from_bjorck_module(list(model.model.encoder_mean.children()), config)
     model.model.encoder_mean = nn.Sequential(*encoder_mean_list)
-    encoder_st_dev_list = convert_from_bjorck_module(list(model.model.encoder_st_dev.children()), config)
-    model.model.encoder_st_dev = nn.Sequential(*encoder_st_dev_list)
+    encoder_std_dev_list = convert_from_bjorck_module(list(model.model.encoder_std_dev.children()), config)
+    model.model.encoder_std_dev = nn.Sequential(*encoder_std_dev_list)
     decoder_list = convert_from_bjorck_module(list(model.model.decoder.children()), config)
     model.model.decoder = nn.Sequential(*decoder_list)
 

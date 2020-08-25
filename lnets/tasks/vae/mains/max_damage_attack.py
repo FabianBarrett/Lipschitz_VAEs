@@ -50,7 +50,7 @@ def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_i
     return (torch.tensor(noise).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
 
 # BB: Note the following is to be extended / built upon (i.e. further plots to come)
-def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num_images, num_estimation_samples, r, d_ball_init=True):
+def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num_images, num_estimation_samples, r, num_random_inits, d_ball_init=True):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -69,16 +69,16 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
             model_results = []
             for noise_norm in noise_norms:
                 distances = []
-                # BB: Return and check that it makes sense to be re-computing the adversarial noise
-                for sample_index in tqdm(range(num_estimation_samples)):
-                    _, clean_reconstruction = model.loss(original_image)
+                for random_init in tqdm(range(num_random_inits)):
                     noise, _ = max_damage_optimize_noise(model, model_configs[0], original_image, noise_norm, d_ball_init=d_ball_init)
                     noise = (maximum_noise_norm * noise.div(noise.norm(p=2)))
                     noisy_image = original_image + noise.view(1, model_configs[0].data.im_height, model_configs[0].data.im_width)
-                    _, noisy_reconstruction = model.loss(noisy_image)
-                    distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
+                    for sample_index in range(num_estimation_samples):
+                        _, clean_reconstruction = model.loss(original_image)
+                        _, noisy_reconstruction = model.loss(noisy_image)
+                        distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
                 distances = torch.tensor(distances)
-                estimated_probability = len(distances[distances <= r]) / num_estimation_samples
+                estimated_probability = len(distances[distances <= r]) / (num_estimation_samples * num_random_inits)
                 model_results.append(estimated_probability)
             if model_configs[model_index].model.linear.type == "standard":
                 results.append(("Standard VAE", model_results))
@@ -86,14 +86,17 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
                 # Note: This assumes the Lipschitz of the encoder and decoder are the same
                 results.append(("Lipschitz constant " + str(model_configs[model_index].model.encoder_mean.l_constant), model_results))
 
+        colors = [color for color in mcolors.TABLEAU_COLORS][:len(models)]
+
         plt.clf()
-        for model_results in results:
-        	plt.plot(noise_norms.numpy(), np.array(model_results[1]), label=model_results[0])
+        for model_results_index in range(len(results)):
+        	plt.plot(noise_norms.numpy(), np.array(results[model_results_index][1]), label=results[model_results_index][0], color=colors[model_results_index])
+            # plt.plot(noise_norms.numpy(), np.array(model_results[1]), label=model_results[0])
         plt.legend()
         plt.xlabel(r"$|\delta_x|$")
         plt.ylabel(r"$\mathbb{P}(||\Delta||_2 \leq r)$")
         plt.ylim(bottom=0.0, top=1.2)
-        plt.title("Max damage attacks on image {}".format(image_index + 1) + "\n (Estimated using {} samples for r={})".format(num_estimation_samples, r))
+        plt.title("Max damage attacks on image {}".format(image_index + 1) + "\n (Estimated using {} samples for r={})".format(num_estimation_samples * num_random_inits, r))
         plotting_dir = "out/vae/attacks/max_damage_attacks/"
         if d_ball_init:
             saving_string = "updated_r_robustness_probability_max_damage_example_{}_d_ball_init.png".format(image_index + 1)
@@ -104,37 +107,39 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
 
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
 # BB: I wonder whether instead of having a single attack applied multiple times one could run several attacks (i.e. 1 attack for each estimation_sample)
-def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, margin_granularity, d_ball_init=True):
+def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True):
     # BB: Remember to adjust (i.e. increase) the granularity when creating final plots
     candidate_margins = np.arange(1e-6, max_R, margin_granularity)
     distances = []
-    noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init)
-    noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
-    noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
-    for _ in range(num_estimation_samples):
-        _, clean_reconstruction = model.loss(image)
-        _, noisy_reconstruction = model.loss(noisy_image)
-        distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
-    distances = torch.tensor(distances)
-    estimated_probability = len(distances[distances <= r]) / num_estimation_samples
-    if estimated_probability < 0.5:
-        return candidate_margins[0]
-    for candidate_margin in reversed(candidate_margins):
-        distances = []
-        noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init)
-        noise = (candidate_margin * noise.div(noise.norm(p=2)))
+    for random_init in range(num_random_inits):
+        noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init)
+        noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
         noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
         for _ in range(num_estimation_samples):
             _, clean_reconstruction = model.loss(image)
             _, noisy_reconstruction = model.loss(noisy_image)
             distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
+    distances = torch.tensor(distances)
+    estimated_probability = len(distances[distances <= r]) / (num_estimation_samples * num_random_inits)
+    if estimated_probability < 0.5:
+        return candidate_margins[0]
+    for candidate_margin in reversed(candidate_margins):
+        distances = []
+        for random_init in range(num_random_inits):
+            noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init)
+            noise = (candidate_margin * noise.div(noise.norm(p=2)))
+            noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
+            for _ in range(num_estimation_samples):
+                _, clean_reconstruction = model.loss(image)
+                _, noisy_reconstruction = model.loss(noisy_image)
+                distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
         distances = torch.tensor(distances)
-        estimated_probability = len(distances[distances <= r]) / num_estimation_samples
+        estimated_probability = len(distances[distances <= r]) / (num_estimation_samples * num_random_inits)
         if estimated_probability > 0.5:
             return candidate_margin
     raise RuntimeError("Did not find R margin such that r-robustness was satisfied.")
 
-def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, margin_granularity, d_ball_init=True):
+def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -148,14 +153,14 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
         for image_index in tqdm(range(num_images)):
             original_image = attack_sample[0][image_index]
             model = models[model_index]
-            estimated_margin = estimate_R_margin(model, model_configs[0], original_image, max_R, num_estimation_samples, r, margin_granularity, d_ball_init=d_ball_init)
+            estimated_margin = estimate_R_margin(model, model_configs[0], original_image, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=d_ball_init)
             image_margins.append(estimated_margin)
             if model_configs[model_index].model.linear.type != "standard":
-                encoder_st_dev = models[model_index].loss(original_image, get_encoder_st_dev=True)
+                encoder_std_dev = models[model_index].loss(original_image, get_encoder_std_dev=True)
                 bound_inequality_result = solve_bound_inequality(model_configs[model_index].model.decoder.l_constant, 
                                                                  model_configs[model_index].model.encoder_mean.l_constant, 
-                                                                 model_configs[model_index].model.encoder_st_dev.l_constant, 
-                                                                 r, encoder_st_dev.norm(p=2))
+                                                                 model_configs[model_index].model.encoder_std_dev.l_constant, 
+                                                                 r, encoder_std_dev.norm(p=2))
                 bound_margins.append(process_bound_inequality_result(bound_inequality_result))
         if model_configs[model_index].model.linear.type == "standard":
             model_margins.append(("Standard VAE", image_margins))
@@ -215,7 +220,7 @@ def max_damage_attack_model(opt):
     model_paths = []
     for l_constant in opt['l_constants']:
         complete_exp_dir = generic_exp_dir.replace("+", str(l_constant))
-        model_path = os.path.join(complete_exp_dir, 'checkpoints', 'best', 'best_model.pt')
+        model_path = os.path.join(complete_exp_dir, 'checkpoints', 'best', 'best_model.pt') 
         model_paths.append(model_path)
         with open(os.path.join(complete_exp_dir, 'logs', 'config.json'), 'r') as f:
             model_config = Munch.fromDict(json.load(f))
@@ -230,7 +235,7 @@ def max_damage_attack_model(opt):
 
     # Load comparison (standard VAE) model
     comparison_model_exp_dir = opt['comparison_model']['exp_path']
-    comparison_model_path = os.path.join(comparison_model_exp_dir, 'checkpoints', 'best', 'best_model.pt')
+    comparison_model_path = os.path.join(comparison_model_exp_dir, 'checkpoints', 'best', 'best_model.pt') 
     with open(os.path.join(comparison_model_exp_dir, 'logs', 'config.json'), 'r') as f:
         comparison_model_config = Munch.fromDict(json.load(f))
 
@@ -261,11 +266,11 @@ def max_damage_attack_model(opt):
     orthonormalized_models.append(comparison_model)
     model_configs.append(comparison_model_config)
 
-    # # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
-    # get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], d_ball_init=opt['d_ball_init'])
+    # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
+    get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
 
     # Inspect estimated R margin w.r.t. model
-    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], d_ball_init=opt['d_ball_init'])
+    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
 
 if __name__ == '__main__':
 
@@ -283,7 +288,8 @@ if __name__ == '__main__':
     parser.add_argument('--r', type=float, default=8.0, help='value of r to evaluate r-robustness probability for')
     parser.add_argument('--max_R', type=float, default=15.0, help='maximum value of R to test for in estimating r-robustness margin')
     parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
-    parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')    
+    parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')
+    parser.add_argument('--num_random_inits', type=int, default=5, help='how many random initializations of attack noise to use (int)')
     parser.add_argument('--margin_granularity', type=float, default=0.5, help='spacing between candidate R margins (smaller gives more exact estimate for more computation)')
 
     args = vars(parser.parse_args())

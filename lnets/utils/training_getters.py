@@ -107,11 +107,11 @@ def get_experiment_name(config):
 def get_VAE_experiment_name(config, saving_tag=""):
     if saving_tag != "":
         if "standard" in saving_tag:
-            VAE_exp_name = "VAE" + "_" + saving_tag
+            VAE_exp_name = "VAE_" + "latent_dim_{}_".format(config.model.latent_dim) + saving_tag
         else:
-            VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_" + saving_tag  
+            VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_latent_dim_{}_".format(config.model.latent_dim) + saving_tag  
     else: 
-        VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant)
+        VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_latent_dim_{}".format(config.model.latent_dim)
     return VAE_exp_name
 
 def get_training_dirs(config, VAE=False, finetune=False, saving_tag=""):
