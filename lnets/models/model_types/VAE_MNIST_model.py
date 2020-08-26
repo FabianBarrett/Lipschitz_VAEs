@@ -37,6 +37,9 @@ class VAEMNISTModel(ExperimentModel):
             # return (-1.0) * (self.model.training_set_size / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions
             return (-1.0 / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions
 
+    def get_latents(self, x):
+        return self.model.get_latents(x)
+
     def eval_max_damage_attack(self, x, noise, maximum_noise_norm, scale=False):
         return self.model.eval_max_damage_attack(x, noise, maximum_noise_norm, scale=scale)
 
@@ -45,7 +48,6 @@ class VAEMNISTModel(ExperimentModel):
             return self.model.eval_latent_space_attack(x, target_x, noise, soft=soft, regularization_coefficient=regularization_coefficient)
         else:
             return self.model.eval_latent_space_attack(x, target_x, noise, soft=soft, maximum_noise_norm=maximum_noise_norm)
-        
 
     def add_to_meters(self, state):
         self.meters['loss'].add(state['loss'].item())

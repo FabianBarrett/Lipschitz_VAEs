@@ -1,0 +1,1 @@
+pythonw ./lnets/tasks/vae/mains/visualize_latents.py --lipschitz_model.exp_path=./out/vae/mnist/finetuned/lipschitz_10.0_latent_dim_2_continuous_bernoulli_std_dev_better_convergence --standard_model.exp_path=./out/vae/mnist/not_finetuned/VAE_latent_dim_2_standard_continuous_bernoulli

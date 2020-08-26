@@ -8,7 +8,6 @@ import scipy.optimize
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-import os
 from tqdm import tqdm
 
 from lnets.models import get_model
@@ -240,7 +239,6 @@ def max_damage_attack_model(opt):
     with open(os.path.join(comparison_model_exp_dir, 'logs', 'config.json'), 'r') as f:
         comparison_model_config = Munch.fromDict(json.load(f))
 
-    comparison_model_config = fix_groupings(comparison_model_config)
     comparison_model = get_model(comparison_model_config)
     comparison_model.load_state_dict(torch.load(comparison_model_path))
 

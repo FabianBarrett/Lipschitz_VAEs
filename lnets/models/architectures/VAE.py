@@ -131,6 +131,13 @@ class fcMNISTVAE(Architecture):
             if hasattr(self.decoder[i], 'project_weights'):
                 self.decoder[i].project_weights(proj_config)
 
+    def get_latents(self, x):
+        x = x.view(-1, self.input_dim)
+        encoder_mean = self.encoder_mean(x)
+        encoder_std_dev = self.encoder_std_dev(x)
+        z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
+        return z
+
     # BB: Code taken but slightly adapted from Alex Camuto and Matthew Willetts
     # Note: maximum_noise_norm defines maximum radius of ball induced by noise around datapoint
     # If not scale, then clipping (i.e. upper bound on norm rather than tight constraint)
