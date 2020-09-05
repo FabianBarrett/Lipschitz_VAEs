@@ -41,7 +41,8 @@
           2, 
           2,
           1
-        ]
+        ],
+        "desired_radius": 5.0
       }, 
       "decoder": {
         "l_constant": 2.0, 
