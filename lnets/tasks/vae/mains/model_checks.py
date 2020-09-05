@@ -1,5 +1,4 @@
 # BB: Written starting July 28
-
 # Run with e.g. pythonw ./lnets/tasks/vae/mains/model_checks.py --model.exp_path=./out/vae/binarized_mnist/finetuned/model_directory
 
 import argparse

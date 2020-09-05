@@ -1,5 +1,6 @@
 # BB: Written starting July 26
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import os
 import numpy as np
 import torch
@@ -9,6 +10,42 @@ from lnets.utils.math.projections import bjorck_orthonormalize
 from sympy.abc import x
 from sympy import Poly, Interval, FiniteSet
 from sympy.solvers.inequalities import solve_poly_inequality
+
+def get_log_likelihood_Lipschitz_plot(models, model_configs, iterator):
+    # Assumes encoder and decoder take the same Lipschitz constant
+    l_constants = [model_config.model.encoder_mean.l_constant for model_config in model_configs[:len(model_configs) - 1]]
+    model_mean_NLLs = []
+    model_counter = 1
+    lipschitz_models = models[:len(models) - 1]
+    for model in lipschitz_models:
+        print("Computing log likelihoods for model {}...".format(model_counter))
+        model_counter += 1
+        NLLs = check_NLL(model, iterator)
+        model_mean_NLLs.append((-1.0) * NLLs.mean())
+    colors = [color for color in mcolors.TABLEAU_COLORS]
+    plt.plot(l_constants, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
+    plt.ylabel("Mean Continuous Bernoulli log likelihood on test set")
+    plt.xlabel("Lipschitz constant of VAE encoder and decoder")
+    # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
+    plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/log_likelihoods.png', dpi=300)
+
+def get_encoder_std_dev_Lipschitz_plot(models, model_configs, iterator):
+    # Assumes encoder and decoder take the same Lipschitz constant
+    l_constants = [model_config.model.encoder_mean.l_constant for model_config in model_configs[:len(model_configs) - 1]]
+    model_mean_encoder_std_dev_norms = []
+    model_counter = 1
+    lipschitz_models = models[:len(models) - 1]
+    for model in lipschitz_models:
+        print("Computing encoder standard deviation norms for model {}...".format(model_counter))
+        model_counter += 1
+        encoder_std_dev_norms = check_encoder_std_dev_norm(model, iterator)
+        model_mean_encoder_std_dev_norms.append(encoder_std_dev_norms.mean())
+    colors = [color for color in mcolors.TABLEAU_COLORS]
+    plt.plot(l_constants, model_mean_encoder_std_dev_norms, color=colors[1], linestyle='None', marker='o', fillstyle='full')
+    plt.ylabel("Mean encoder standard deviation norm on test set")
+    plt.xlabel("Lipschitz constant of VAE encoder and decoder")
+    # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
+    plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/encoder_std_devs.png', dpi=300)
 
 # Note: Assumes inequality is in form expression <= 0
 def solve_bound_inequality(a, b, c, r, std_dev_norm):
@@ -63,11 +100,19 @@ def fix_groupings(config):
 
     return config
 
+def check_encoder_std_dev_norm(model, iterator): 
+    std_dev_norms = torch.empty(0)
+    for batch in iterator:
+        std_dev_norms = torch.cat((std_dev_norms, model.loss(batch, get_encoder_std_dev=True).norm(p=2, dim=1)))
+    print("Mean encoder standard deviation norm on test set: {}".format(std_dev_norms.mean()))
+    return std_dev_norms
+
 def check_NLL(model, iterator):
     NLLs = torch.empty(0)
     for batch in iterator:
         NLLs = torch.cat((NLLs, model.loss(batch, check_likelihood=True)[2]))
     print("Mean NLL on test set: {}".format(NLLs.mean()))
+    return NLLs
 
 def visualize_reconstructions(model, iterator, config, figures_dir=None, epoch=None, title_string=None):
     

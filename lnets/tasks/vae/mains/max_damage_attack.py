@@ -13,7 +13,7 @@ from tqdm import tqdm
 from lnets.models import get_model
 from lnets.data.load_data import load_data
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
-from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, sample_d_ball, solve_bound_inequality, process_bound_inequality_result
+from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, sample_d_ball, solve_bound_inequality, process_bound_inequality_result, get_log_likelihood_Lipschitz_plot, get_encoder_std_dev_Lipschitz_plot
 
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
 def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True, scale=False):
@@ -264,6 +264,13 @@ def max_damage_attack_model(opt):
 
     orthonormalized_models.append(comparison_model)
     model_configs.append(comparison_model_config)
+
+    # Note: The following two function calls are added to the file for convenience (since all models are pre-loaded), not because of conceptual similarity
+    # Inspect the relationship between encoder standard deviation norm and encoder & decoder Lipschitz constant
+    get_encoder_std_dev_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
+
+    # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
+    get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
 
     # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
     get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])

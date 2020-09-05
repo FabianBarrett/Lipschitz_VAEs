@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class Clip(nn.Module):
-    """Constrains the input vector to have norm at most max_norm."""
+    """Constrains the input matrix to have rows with norms at most max_norm."""
 
     def __init__(self, max_norm, cuda=False):
         super(Clip, self).__init__()
