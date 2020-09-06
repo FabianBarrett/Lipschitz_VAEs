@@ -147,7 +147,7 @@ class fcMNISTVAE(Architecture):
         encoder_mean = self.encoder_mean(x)
         encoder_std_dev = self.encoder_std_dev(x)
         z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
-        return z
+        return z, encoder_mean, encoder_std_dev
 
     # BB: Code taken but slightly adapted from Alex Camuto and Matthew Willetts
     # Note: maximum_noise_norm defines maximum radius of ball induced by noise around datapoint
