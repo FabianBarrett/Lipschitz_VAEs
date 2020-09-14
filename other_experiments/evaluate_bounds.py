@@ -81,11 +81,11 @@ def align_yaxis(ax1, v1, ax2, v2):
 
 def get_gaussian_plot_string(gaussian_type, scaling=1):
 	if gaussian_type == 'random':
-		return "random mean, random variance"
+		return "random means in (-1, 1), random variances in [0, 1)"
 	elif gaussian_type == 'scaled_center':
 		return "$\mathcal{N}(0, " + "{})$".format(scaling)
 	elif gaussian_type == 'off_center':
-		return "random mean, $\sigma^2=1$"
+		return "random means in (-1, 1), $\sigma^2=1$"
 	else: 
 		return "$\mathcal{N}(0, 1)$"
 
@@ -117,7 +117,7 @@ def generate_markov_probability_bound_plot(quantiles, bounds, samples, estimated
 	align_yaxis(ax1, 0, ax2, 0)
 
 	plt.hlines(y=[0.0, 1.0], xmin=0, xmax=max(samples) + 1, color='black')
-	plt.title(r"Generalized $\chi^2$ samples, upper tail probabilities & Markov's Bound" "\n" r"(Gaussians used in sampling: {})".format(gaussian_plot_string))
+	plt.title(r"Generalized $\chi^2$ samples, upper tail probabilities & Markov's Inequality" "\n" r"({})".format(gaussian_plot_string))
 	plt.legend()
 	plt.savefig(os.getcwd() + "/out/vae/other_figures/bound_tightness/" + "markov_bound_{}_gaussians".format(gaussian_type), dpi=300)
 	plt.clf()
@@ -148,17 +148,18 @@ def generate_chi_2_probability_bound_plot(quantiles, chi_2_bounds, markov_bounds
 	ax2.plot(quantiles, estimated_probabilities, 'o', color=colors[1], label=r'$\mathbb{P}[X > t]$')
 	ax2.plot(truncated_chi_2_quantiles, truncated_chi_2_bounds, '+', color=colors[3], label=r'$\chi^2$ tail bound')
 	if combined:
-		ax2.plot(truncated_markov_quantiles, truncated_markov_bounds, '+', color=colors[2], label="Markov's Bound")
+		ax2.plot(truncated_markov_quantiles, truncated_markov_bounds, '+', color=colors[2], label="Markov's Inequality")
 	ax2.tick_params(axis='y', labelcolor=colors[1])
 
 	align_yaxis(ax1, 0, ax2, 0)
 
 	plt.hlines(y=[0.0, 1.0], xmin=0, xmax=max(samples) + 1, color='black')
-	plt.title(r"Generalized $\chi^2$ samples, upper tail probabilities & $\chi^2$ tail bound" "\n" r"(Gaussians used in sampling: {}, {})".format(df, gaussian_plot_string))
 	plt.legend()
 	if combined:
+		plt.title(r"Generalized $\chi^2$ samples, upper tail probabilities & tail bounds" "\n" r"({} Gaussians, {})".format(df, gaussian_plot_string))
 		plt.savefig(os.getcwd() + "/out/vae/other_figures/bound_tightness/" + "combined_bounds_{}_gaussians".format(gaussian_type), dpi=300)
 	else:
+		plt.title(r"Generalized $\chi^2$ samples, upper tail probabilities & $\chi^2$ tail bound" "\n" r"({} Gaussians, {})".format(df, gaussian_plot_string))
 		plt.savefig(os.getcwd() + "/out/vae/other_figures/bound_tightness/" + "chi_2_bound_{}_gaussians".format(gaussian_type), dpi=300)
 	plt.clf()
 
@@ -201,7 +202,9 @@ if __name__ == "__main__":
 		estimated_shifted_scaled_probabilities = [estimated_shifted_scaled_probabilities[index][1] for index in range(len(estimated_shifted_scaled_probabilities))]
 		print("Quantiles: {}".format(np.round(quantiles, 2)))
 		print("Estimated probabilities: {}".format(np.round(estimated_probabilities, 2)))
+		# Upper bound estimated probabilities is the RHS of eq. (3) in Tom's Notes of VAE Robustness Bounds
 		print("Upper bound estimated probabilities: {}".format(np.round(estimated_shifted_probabilities, 2)))
+		# Upper upper bound estimated probabilities is the term in (6) in Tom's Notes of VAE Robustness Bounds
 		print("Upper upper bound estimated probabilities: {}".format(np.round(estimated_shifted_scaled_probabilities, 2)))
 		print("Markov bounds: {}".format(np.round(markov_bounds, 2)))
 		print("Chi_2 bounds: {}".format(np.round(chi_2_bounds, 2)))

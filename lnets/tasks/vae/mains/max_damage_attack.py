@@ -110,8 +110,9 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
 def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True):
     # BB: Remember to adjust (i.e. increase) the granularity when creating final plots
     candidate_margins = np.arange(1e-6, max_R, margin_granularity)
-    distances = []
+    estimated_probabilities = []
     for random_init in range(num_random_inits):
+        distances = []
         noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init, scale=True)
         noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
         noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
@@ -119,13 +120,16 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, ma
             _, clean_reconstruction = model.loss(image)
             _, noisy_reconstruction = model.loss(noisy_image)
             distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
-    distances = torch.tensor(distances)
-    estimated_probability = len(distances[distances <= r]) / (num_estimation_samples * num_random_inits)
-    if estimated_probability < 0.5:
+        distances = torch.tensor(distances)
+        estimated_probability = len(distances[distances <= r]) / (num_estimation_samples)
+        estimated_probabilities.append(estimated_probability)
+    estimated_probabilities = torch.tensor(estimated_probabilities)
+    if len(estimated_probabilities[estimated_probabilities <= 0.5]) >= 1:
         return candidate_margins[0]
     for candidate_margin in reversed(candidate_margins):
-        distances = []
+        estimated_probabilities = []
         for random_init in range(num_random_inits):
+            distances = []
             noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init, scale=True)
             noise = (candidate_margin * noise.div(noise.norm(p=2)))
             noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
@@ -133,13 +137,15 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, ma
                 _, clean_reconstruction = model.loss(image)
                 _, noisy_reconstruction = model.loss(noisy_image)
                 distances.append((noisy_reconstruction.flatten() - clean_reconstruction.flatten()).norm(p=2))
-        distances = torch.tensor(distances)
-        estimated_probability = len(distances[distances <= r]) / (num_estimation_samples * num_random_inits)
-        if estimated_probability > 0.5:
+            distances = torch.tensor(distances)
+            estimated_probability = len(distances[distances <= r]) / (num_estimation_samples)
+            estimated_probabilities.append(estimated_probability)
+        estimated_probabilities = torch.tensor(estimated_probabilities)
+        if len(estimated_probabilities[estimated_probabilities > 0.5]) == num_random_inits:
             return candidate_margin
     raise RuntimeError("Did not find R margin such that r-robustness was satisfied.")
 
-def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True):
+def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True, certified=False):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -193,9 +199,9 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
     fig.suptitle(r"Estimated $R_\mathcal{X}^r(x)$ for" + " r={}".format(r))
     plotting_dir = "out/vae/attacks/R_margins/"
     if d_ball_init:
-        fig.savefig(plotting_dir + "estimated_R_margins_d_ball_init.png", dpi=300)
+        fig.savefig(plotting_dir + "estimated_R_margins_d_ball_init_certified_{}.png".format(str(certified).lower()), dpi=300)
     else:
-        fig.savefig(plotting_dir + "estimated_R_margins_standard_init.png", dpi=300)
+        fig.savefig(plotting_dir + "estimated_R_margins_standard_init_certified_{}.png".format(str(certified).lower()), dpi=300)
     
     # Plot estimated R margins against margin implied by Markov bound
     for model_index in range(len(models)):
@@ -203,11 +209,14 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
             max_value = max(max(model_margins[model_index][2]), max(model_margins[model_index][1]))
             plt.clf()
             plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[model_index], linestyle='None', marker='o', fillstyle='full')
+            print("Estimated R margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][1]))
+            print("Theoretical R margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][2]))
             plt.plot(np.linspace(0, max_value), np.linspace(0, max_value), color='black')
-            plt.xlabel(r"$R_\mathcal{X}^r(x)$ bound")
+            plt.xlabel(r"$R_\mathcal{X}^r(x)$ bound (log scale)")
+            plt.xscale('log')
             plt.ylabel(r"Estimated $R_\mathcal{X}^r(x)$")
             plt.title(r"Estimated $R_\mathcal{X}^r(x)$ vs. $R_\mathcal{X}^r(x)$ bound for" + " r={}".format(r) + "\n Lipschitz constant: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant)))
-            saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant))
+            saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}_certified_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant), str(certified).lower())
             plt.savefig(plotting_dir + saving_name, dpi=300)
             plt.clf()
 
@@ -265,18 +274,19 @@ def max_damage_attack_model(opt):
     orthonormalized_models.append(comparison_model)
     model_configs.append(comparison_model_config)
 
-    # Note: The following two function calls are added to the file for convenience (since all models are pre-loaded), not because of conceptual similarity
-    # Inspect the relationship between encoder standard deviation norm and encoder & decoder Lipschitz constant
-    get_encoder_std_dev_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
+    if not opt['certified']:
+        # Note: The following two function calls are added to the file for convenience (since all models are pre-loaded), not because of conceptual similarity
+        # Inspect the relationship between encoder standard deviation norm and encoder & decoder Lipschitz constant
+        get_encoder_std_dev_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
 
-    # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
-    get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
+        # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
+        get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
 
-    # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
-    get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
+        # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
+        get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
 
     # Inspect estimated R margin w.r.t. model
-    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
+    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'], certified=opt['certified'])
 
 if __name__ == '__main__':
 
@@ -292,11 +302,12 @@ if __name__ == '__main__':
     parser.add_argument('--num_R_margin_images', type=int, default=25, help='number of images to estimate R margin for')
     parser.add_argument('--num_estimation_samples', type=int, default=40, help='number of forward passes to use for estimating r / capital R')
     parser.add_argument('--r', type=float, default=8.0, help='value of r to evaluate r-robustness probability for')
-    parser.add_argument('--max_R', type=float, default=15.0, help='maximum value of R to test for in estimating r-robustness margin')
+    parser.add_argument('--max_R', type=float, default=10.0, help='maximum value of R to test for in estimating r-robustness margin')
     parser.add_argument('--maximum_noise_norm', type=float, default=10.0, help='maximal norm of noise in max damage attack')
     parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')
     parser.add_argument('--num_random_inits', type=int, default=5, help='how many random initializations of attack noise to use (int)')
     parser.add_argument('--margin_granularity', type=float, default=0.5, help='spacing between candidate R margins (smaller gives more exact estimate for more computation)')
+    parser.add_argument('--certified', type=bool, default=False, help='flag to indicate whether model being evaluated should be certifiably robust')
 
     args = vars(parser.parse_args())
 

@@ -23,11 +23,13 @@ def get_log_likelihood_Lipschitz_plot(models, model_configs, iterator):
         NLLs = check_NLL(model, iterator)
         model_mean_NLLs.append((-1.0) * NLLs.mean())
     colors = [color for color in mcolors.TABLEAU_COLORS]
+    plt.clf()
     plt.plot(l_constants, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
     plt.ylabel("Mean Continuous Bernoulli log likelihood on test set")
     plt.xlabel("Lipschitz constant of VAE encoder and decoder")
     # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
     plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/log_likelihoods.png', dpi=300)
+    plt.clf()
 
 def get_encoder_std_dev_Lipschitz_plot(models, model_configs, iterator):
     # Assumes encoder and decoder take the same Lipschitz constant
@@ -41,11 +43,13 @@ def get_encoder_std_dev_Lipschitz_plot(models, model_configs, iterator):
         encoder_std_dev_norms = check_encoder_std_dev_norm(model, iterator)
         model_mean_encoder_std_dev_norms.append(encoder_std_dev_norms.mean())
     colors = [color for color in mcolors.TABLEAU_COLORS]
+    plt.clf()
     plt.plot(l_constants, model_mean_encoder_std_dev_norms, color=colors[1], linestyle='None', marker='o', fillstyle='full')
-    plt.ylabel("Mean encoder standard deviation norm on test set")
+    plt.ylabel(r"Mean $||\sigma_\phi(x)||_2$ on test set")
     plt.xlabel("Lipschitz constant of VAE encoder and decoder")
     # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
     plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/encoder_std_devs.png', dpi=300)
+    plt.clf()
 
 # Note: Assumes inequality is in form expression <= 0
 def solve_bound_inequality(a, b, c, r, std_dev_norm):
