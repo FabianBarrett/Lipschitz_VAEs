@@ -41,14 +41,12 @@ lnets
 │               └── train_VAE.py            "Training code."
 │               └── ortho_finetune.py       "Runs Bjorck Orthonormalization for more iterations."
 │               └── latent_space_attack.py  "Implements a latent space attack."
-│               └── max_damage_attack.py    "Implements maximum damage attacks and r-robustness    │                                            margin estimation."
+│               └── max_damage_attack.py    "Implements maximum damage attacks and r-robustness margin estimation."
 │               └── model_checks.py         "Verifies the Lipschitz continuity constraints."
 │               └── visualize_latents.py    "Visualizes the learned encoder."
 │               └── utils.py                "Plotting and margin bound computation."
 │           └── configs                     "Houses configuration files for different VAEs."
 ├── other_experiments
-│   └── evaluate_bounds.py                  "Evaluates the tightness of intermediate steps in the  │                                            derivation of Bounds 1 and 2."
-├── scripts                                 "Houses miscellaneous bash scripts to train different │                                            VAEs and run experiments"
+│   └── evaluate_bounds.py                  "Evaluates the tightness of intermediate steps in the derivation of Bounds 1 and 2."
+├── scripts                                 "Houses miscellaneous bash scripts to train different VAEs and run experiments"
 ```
-
-
