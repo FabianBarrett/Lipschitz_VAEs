@@ -45,8 +45,17 @@ lnets
 │               └── model_checks.py         "Verifies the Lipschitz continuity constraints."
 │               └── visualize_latents.py    "Visualizes the learned encoder."
 │               └── utils.py                "Plotting and margin bound computation."
-│           └── configs                     "Houses configuration files for different VAEs."
+│           └── configs
+│               └── mnist                   "Houses configuration files for different VAEs for MNIST."
 ├── other_experiments
 │   └── evaluate_bounds.py                  "Evaluates the tightness of intermediate steps in the derivation of Bounds 1 and 2."
-├── scripts                                 "Houses miscellaneous bash scripts to train different VAEs and run experiments"
+├── scripts                                 "Houses miscellaneous bash scripts to train different VAEs and run experiments."
 ```
+
+## Key Variables in Configuration Files
+The directory ```lnets/tasks/vae/configs``` contains a number of files to configure different VAEs. Key variables in these configuration files are:
+* `model.linear.type`: Options include "standard" (a standard linear layer) and "bjorck" (a linear layer involving Bjorck Orthonormalization).
+* `model.latent_dim`: An integer specifying the dimension of the VAE latent space. 
+* `model.*.l_constant` (where `*` is a stand-in for `encoder_mean`, `encoder_std_dev` or `decoder`): The Lipschitz constant of the relevant model component.
+* `model.activation`: The default activations functions of each model component. Options include "relu" (the ReLU activation) and "groupsort" (the GroupSort activation from Anil et al., 2019).
+* `model.*.layers` (where `*` is again a stand-in for `encoder_mean`, `encoder_std_dev` or `decoder`): A list specifying the hidden dimensions of the linear layers constituting the relevant model component.
