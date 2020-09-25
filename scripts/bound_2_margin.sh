@@ -1,0 +1,1 @@
+pythonw ./other_experiments/get_margin_2.py --m=10 --gamma=0.1 --r=8 --a=10 --b=10

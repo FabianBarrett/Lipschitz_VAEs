@@ -1,0 +1,132 @@
+{
+    "cuda": false,
+    "task": "vae",
+    "output_root": "out/vae/mnist",
+    "exp_name": "lipschitz_bjorck_vae",
+    "seed": 0,
+    "model": {
+      "pretrained_best_path": null,
+      "name": "ELBO_fcMNISTVAE",
+      "activation": "group_sort",
+      "linear": {
+        "type": "bjorck",
+        "parseval": false,
+        "safe_scaling": false,
+        "bjorck_beta": 0.5,
+        "bjorck_iter": 20,
+        "bjorck_order": 1,
+        "bias": true
+      },
+      "encoder_mean": {
+        "l_constant": 10.0, 
+        "layers": [
+          512, 
+          512, 
+          10
+        ],
+        "groupings": [
+          2, 
+          2,
+          1
+        ]
+      },
+      "encoder_std_dev": {
+        "l_constant": 10.0, 
+        "layers": [
+          512,
+          512, 
+          10
+        ], 
+        "groupings": [
+          2, 
+          2,
+          1
+        ]
+      }, 
+      "decoder": {
+        "l_constant": 10.0, 
+        "layers": [
+          512,
+          512,
+          784
+        ], 
+        "groupings": [
+          2, 
+          2,
+          1]
+      }, 
+      "latent_dim": 10,
+      "KL_beta": 10.0, 
+      "per_epoch_proj": {
+        "turned_on": false,
+        "every_n_epochs": 1,
+        "type": "l_2",
+        "bjorck_beta": 0.5,
+        "bjorck_iter": 20,
+        "bjorck_order": 1,
+        "reset_optimizer": false
+      },
+  
+      "per_update_proj": {
+        "turned_on": false,
+        "type": "l_2",
+        "bjorck_beta": 0.5,
+        "bjorck_iter": 1,
+        "bjorck_order": 1
+      }
+    },
+    "optim": {
+      "optimizer": "adam",
+      "lr_schedule": {
+        "name": "step",
+        "lr_init": 0.0001, 
+        "lr_decay": 0.1,
+        "milestones": [
+          60,
+          100,
+          150
+        ],
+        "last_epoch": -1
+      },
+      "to_convergence": true,
+      "convergence_tol": 1e0,
+      "epochs": 10,
+      "batch_size": 128,
+      "momentum": 0.9,
+      "betas": [
+        0.0,
+        0.9,
+        0.99
+      ],
+      "wdecay": 0.0,
+      "criterion": {
+        "tag": "loss",
+        "minmax": "min"
+      },
+      "patience": 50,
+      "max_grad_norm": 1e8
+    },
+    "data": {
+      "name": "mnist",
+      "root": "data",
+      "indices_path": null,
+      "per_class_count": 30,
+      "transform": {
+        "type": "mnist"
+      },
+      "validation": true,
+      "train_size": 0.9,
+      "input_dim": 784,
+      "im_height": 28,
+      "im_width": 28,
+      "num_workers": 0,
+      "class_count": 10
+    },
+    "logging": {
+      "report_freq": 1,
+      "save_model": false,
+      "save_best": true, 
+      "visualize": true, 
+      "num_images": 10
+    }
+  }

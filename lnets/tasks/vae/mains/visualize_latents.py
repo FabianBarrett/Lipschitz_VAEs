@@ -95,7 +95,7 @@ def visualize_latents(opt):
 	for standard_deviation in [1, 2, 3]:
 		ax.add_artist(Ellipse(xy=[0.0, 0.0], width=standard_deviation * 1.0, height=standard_deviation * 1.0, edgecolor='black', facecolor='none', alpha=0.5, label=r"{}$\sigma$".format(int(standard_deviation))))
 	ax.legend()
-	fig.suptitle(r"$q_\phi(z|x)$ in a standard VAE")
+	# fig.suptitle(r"$q_\phi(z|x)$ in a standard VAE")
 	fig.savefig(plotting_dir + "/standard_VAE_posterior.png", dpi=300)
 	fig.clf()
 
@@ -114,8 +114,12 @@ def visualize_latents(opt):
 		ax.add_artist(Ellipse(xy=[0.0, 0.0], width=standard_deviation * 1.0, height=standard_deviation * 1.0, edgecolor='black', facecolor='none', alpha=0.4, label=r"{}$\sigma$".format(int(standard_deviation))))
 	ax.legend()
 	# Note: currently assumes Lipschitz constant of encoder mean, std dev and decoder are the same
-	fig.suptitle(r"$q_\phi(z|x)$ in a VAE with Lipschitz constant {}".format(lipschitz_model_config_1.model.encoder_mean.l_constant))
-	fig.savefig(plotting_dir + "/Lipschitz_VAE_1_posterior.png", dpi=300)
+	if 'beta' in opt['lipschitz_model_1']['exp_path']:
+		# fig.suptitle(r"$q_\phi(z|x)$ in a $\beta$-VAE with Lipschitz constant {} and $\beta$={}".format(lipschitz_model_config_1.model.encoder_mean.l_constant, 5.0))
+		fig.savefig(plotting_dir + "/Lipschitz_beta_VAE_1_posterior.png", dpi=300)
+	else:
+		# fig.suptitle(r"$q_\phi(z|x)$ in a VAE with Lipschitz constant {}".format(lipschitz_model_config_1.model.encoder_mean.l_constant))
+		fig.savefig(plotting_dir + "/Lipschitz_VAE_1_posterior.png", dpi=300)
 	fig.clf()
 
 	fig, ax = plt.subplots()
@@ -133,8 +137,12 @@ def visualize_latents(opt):
 		ax.add_artist(Ellipse(xy=[0.0, 0.0], width=standard_deviation * 1.0, height=standard_deviation * 1.0, edgecolor='black', facecolor='none', alpha=0.4, label=r"{}$\sigma$".format(int(standard_deviation))))
 	ax.legend()
 	# Note: currently assumes Lipschitz constant of encoder mean, std dev and decoder are the same
-	fig.suptitle(r"$q_\phi(z|x)$ in a VAE with Lipschitz constant {}".format(lipschitz_model_config_2.model.encoder_mean.l_constant))
-	fig.savefig(plotting_dir + "/Lipschitz_VAE_2_posterior.png", dpi=300)
+	if 'beta' in opt['lipschitz_model_2']['exp_path']:
+		# fig.suptitle(r"$q_\phi(z|x)$ in a $\beta$-VAE with Lipschitz constant {} and $\beta$={}".format(lipschitz_model_config_2.model.encoder_mean.l_constant, 5.0))
+		fig.savefig(plotting_dir + "/Lipschitz_beta_VAE_2_posterior.png", dpi=300)
+	else:
+		# fig.suptitle(r"$q_\phi(z|x)$ in a VAE with Lipschitz constant {}".format(lipschitz_model_config_2.model.encoder_mean.l_constant))
+		fig.savefig(plotting_dir + "/Lipschitz_VAE_2_posterior.png", dpi=300)
 	fig.clf()
 
 

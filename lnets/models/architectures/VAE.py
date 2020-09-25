@@ -20,6 +20,8 @@ class fcMNISTVAE(Architecture):
         self.input_dim = input_dim 
         self.latent_dim = latent_dim
 
+        self.KL_beta = config.model.KL_beta if 'KL_beta' in config.model else None
+
         self.encoder_mean_layer_sizes = encoder_mean_layers.copy()
         self.encoder_mean_layer_sizes.insert(0, self.input_dim)  # For bookkeeping purposes.
         self.encoder_std_dev_layer_sizes = encoder_std_dev_layers.copy()
@@ -34,6 +36,8 @@ class fcMNISTVAE(Architecture):
         self.encoder_mean_num_layers = len(self.encoder_mean_layer_sizes)
         self.encoder_std_dev_num_layers = len(self.encoder_std_dev_layer_sizes)
         self.decoder_num_layers = len(self.decoder_layer_sizes)
+
+        self.gamma = config.model.encoder_std_dev.gamma if 'gamma' in config.model.encoder_std_dev else None
 
         # Select activation function and grouping.
         self.act_func = select_activation_function(activation)
@@ -75,10 +79,12 @@ class fcMNISTVAE(Architecture):
     def forward(self, x):
         x = x.view(-1, self.input_dim)
         encoder_mean = self.encoder_mean(x)
-        encoder_std_dev = self.encoder_std_dev(x)
+        if self.gamma is None:
+            encoder_std_dev = self.encoder_std_dev(x)
+        else: 
+            encoder_std_dev = self.gamma * torch.ones(encoder_mean.shape)
         z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
         return self.decoder(z), encoder_mean, encoder_std_dev
-
 
     def _get_sequential_layers(self, activation, l_constant_per_layer, config, dropout=False, function=None):
         # First linear transformation.
@@ -145,7 +151,10 @@ class fcMNISTVAE(Architecture):
     def get_latents(self, x):
         x = x.view(-1, self.input_dim)
         encoder_mean = self.encoder_mean(x)
-        encoder_std_dev = self.encoder_std_dev(x)
+        if self.gamma is None:
+            encoder_std_dev = self.encoder_std_dev(x)
+        else:
+            encoder_std_dev = self.gamma * torch.ones(encoder_mean.shape)
         z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
         return z, encoder_mean, encoder_std_dev
 

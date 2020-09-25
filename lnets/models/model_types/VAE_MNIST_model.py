@@ -19,6 +19,8 @@ class VAEMNISTModel(ExperimentModel):
             return encoder_std_dev
         reshaped_inputs = inputs.reshape(reconstructions.shape)
         KL_term = 0.5 * (1.0 + encoder_std_dev.pow(2).log() - encoder_mean.pow(2) - encoder_std_dev.pow(2)).sum()
+        if self.model.KL_beta is not None:
+            KL_term *= self.model.KL_beta
         if continuous_bernoulli:
             continuous_bernoulli_likelihood = ds.continuous_bernoulli.ContinuousBernoulli(probs=reconstructions)
             LL_term = continuous_bernoulli_likelihood.log_prob(reshaped_inputs).sum()

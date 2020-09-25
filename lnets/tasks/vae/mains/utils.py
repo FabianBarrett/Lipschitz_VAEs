@@ -26,7 +26,7 @@ def get_log_likelihood_Lipschitz_plot(models, model_configs, iterator):
     plt.clf()
     plt.plot(l_constants, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
     plt.ylabel("Mean Continuous Bernoulli log likelihood on test set")
-    plt.xlabel("Lipschitz constant of VAE encoder and decoder")
+    plt.xlabel("Lipschitz constant")
     # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
     plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/log_likelihoods.png', dpi=300)
     plt.clf()
@@ -46,7 +46,7 @@ def get_encoder_std_dev_Lipschitz_plot(models, model_configs, iterator):
     plt.clf()
     plt.plot(l_constants, model_mean_encoder_std_dev_norms, color=colors[1], linestyle='None', marker='o', fillstyle='full')
     plt.ylabel(r"Mean $||\sigma_\phi(x)||_2$ on test set")
-    plt.xlabel("Lipschitz constant of VAE encoder and decoder")
+    plt.xlabel("Lipschitz constant")
     # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
     plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/encoder_std_devs.png', dpi=300)
     plt.clf()
@@ -68,6 +68,45 @@ def process_bound_inequality_result(bound_inequality_result):
         return max(values)
     else:
         raise RuntimeError("Inequality result type not recognized.")
+
+def compute_C_m(m):
+    return (1 / np.sqrt(np.pi)) * np.exp(0.5 * (m - (m - 1) * np.log(m)))
+
+def compute_u(r, a, b, gamma, x):
+    numerator = ((r / a) - b * x) ** 2
+    denominator = 2 * (gamma ** 2)
+    return numerator / denominator
+
+def compute_main_term(u, m):
+    numerator = np.power(u, 0.5 * m) * np.exp(-0.5 * u)
+    denominator = u - m + 2
+    return numerator / denominator
+
+def compute_bound_expression(a, b, gamma, r, m, x):
+    # Compute the quantile
+    u = compute_u(r, a, b, gamma, x)
+    if u <= (m - 2):
+        return np.inf
+    # Get the coefficient that depends on m in the bound
+    C_m = compute_C_m(m)
+    # Compute the main term
+    main_term = compute_main_term(u, m)
+    # Put everything together
+    full_bound_expression = C_m * main_term - 0.5
+    return full_bound_expression
+
+def solve_bound_2(a, b, gamma, r, m):
+    perturbation_upper_bound = r / (a * b)
+    x_values = np.linspace(0, perturbation_upper_bound, num=200)
+    solution = (-1)
+    for x_value in x_values:
+        y_value = compute_bound_expression(a, b, gamma, r, m, x_value)
+        if y_value <= 0 and x_value > solution:
+            solution = x_value
+    if solution == (-1):
+        return 0.0
+    else:
+        return solution
 
 # Adapted from http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
 # BB: Note that this doesn't exactly sample uniformly from the interior of a ball with the specified radius (due to scaling at the end)

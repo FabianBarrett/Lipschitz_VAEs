@@ -95,26 +95,28 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
         comparison_image_compilation = get_attack_images(comparison_model, config, original_image, target_image, initial_noise, soft=soft, regularization_coefficient=regularization_coefficient, maximum_noise_norm=maximum_noise_norm)
 
         # Plotting
+        plt.figure(figsize =(9, 3))
         plt.imshow(lipschitz_image_compilation.detach().squeeze().numpy())
         plt.axis('off')
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        image_caption = "\n Left to right: Original image, original reconstruction, \n noise, noisy image, noisy reconstruction, target image"
+        # image_caption = "\n Left to right: Original image, original reconstruction, \n noise, noisy image, noisy reconstruction, target image"
         if soft:
-            plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Regularization coefficient: {}".format(regularization_coefficient) + image_caption)
+            plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Regularization coefficient: {}".format(regularization_coefficient)) # + image_caption)
             plt.savefig(plotting_dir + "latent_attack_{}_soft_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
         else:
-            plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Maximum noise norm: {}".format(maximum_noise_norm) + image_caption)
-            plt.savefig(plotting_dir + "latent_attack_{}_hard_lipschitz_{}_maximum_noise_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
+            # plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Maximum perturbation norm: {}".format(maximum_noise_norm)) # + image_caption)
+            plt.savefig(plotting_dir + "latent_attack_{}_hard_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
 
+        plt.figure(figsize = (9, 3))
         plt.imshow(comparison_image_compilation.detach().squeeze().numpy())
         plt.axis('off')
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
         if soft:
-            plt.title("Latent space attack on standard VAE" + "\n Regularization coefficient: {}".format(regularization_coefficient) + image_caption)
+            plt.title("Latent space attack on standard VAE" + "\n Regularization coefficient: {}".format(regularization_coefficient)) # + image_caption)
             plt.savefig(plotting_dir + "latent_attack_{}_soft_comparison_for_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
         else:
-            plt.title("Latent space attack on standard VAE" + "\n Maximum noise norm: {}".format(maximum_noise_norm) + image_caption)
-            plt.savefig(plotting_dir + "latent_attack_{}_hard_comparison_for_lipschitz_{}_maximum_noise_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
+            # plt.title("Latent space attack on standard VAE" + "\n Maximum perturbation norm: {}".format(maximum_noise_norm)) # + image_caption)
+            plt.savefig(plotting_dir + "latent_attack_{}_hard_comparison_for_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
 
 
 def latent_attack_model(opt):
@@ -156,7 +158,8 @@ def latent_attack_model(opt):
     orthonormalized_standard_model.eval()
     comparison_model.eval()
 
-    print("Performing latent space attacks for Lipschitz constant {} with regularization coefficient {}...".format(lipschitz_model_config.model.encoder_mean.l_constant, opt['regularization_coefficient']))
+    if opt['soft']:
+        print("Performing latent space attacks for Lipschitz constant {} with regularization coefficient {}...".format(lipschitz_model_config.model.encoder_mean.l_constant, opt['regularization_coefficient']))
     latent_space_attack(orthonormalized_standard_model, comparison_model, lipschitz_model_config, data['test'], opt['num_images'], d_ball_init=opt['d_ball_init'], soft=opt['soft'], regularization_coefficient=opt['regularization_coefficient'], maximum_noise_norm=opt['maximum_noise_norm'])
 
 

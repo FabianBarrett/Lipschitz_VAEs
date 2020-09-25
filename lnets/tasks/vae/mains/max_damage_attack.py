@@ -13,7 +13,14 @@ from tqdm import tqdm
 from lnets.models import get_model
 from lnets.data.load_data import load_data
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
-from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, sample_d_ball, solve_bound_inequality, process_bound_inequality_result, get_log_likelihood_Lipschitz_plot, get_encoder_std_dev_Lipschitz_plot
+from lnets.tasks.vae.mains.utils import orthonormalize_model, \
+                                        fix_groupings, \
+                                        sample_d_ball, \
+                                        solve_bound_inequality, \
+                                        process_bound_inequality_result, \
+                                        get_log_likelihood_Lipschitz_plot, \
+                                        get_encoder_std_dev_Lipschitz_plot, \
+                                        solve_bound_2
 
 # BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
 def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True, scale=False):
@@ -145,7 +152,7 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, ma
             return candidate_margin
     raise RuntimeError("Did not find R margin such that r-robustness was satisfied.")
 
-def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True, certified=False):
+def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True, certified=False, fixed_std_dev=False):
 
     sample = next(iter(iterator))
     attack_sample = (sample[0][:num_images], sample[1][:num_images])
@@ -156,18 +163,25 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
         image_margins = []
         if model_configs[model_index].model.linear.type != "standard":
             bound_margins = []
+        if model_configs[model_index].model.linear.type != "standard" and 'gamma' in model_configs[model_index].model.encoder_std_dev:
+            bound_margin = solve_bound_2(model_configs[model_index].model.decoder.l_constant, 
+                                             model_configs[model_index].model.encoder_mean.l_constant, 
+                                             model_configs[model_index].model.encoder_std_dev.gamma, r,
+                                             model_configs[model_index].model.latent_dim)
         for image_index in tqdm(range(num_images)):
             original_image = attack_sample[0][image_index]
             model = models[model_index]
             estimated_margin = estimate_R_margin(model, model_configs[0], original_image, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=d_ball_init)
             image_margins.append(estimated_margin)
-            if model_configs[model_index].model.linear.type != "standard":
+            if model_configs[model_index].model.linear.type != "standard" and not fixed_std_dev:
                 encoder_std_dev = models[model_index].loss(original_image, get_encoder_std_dev=True)
                 bound_inequality_result = solve_bound_inequality(model_configs[model_index].model.decoder.l_constant, 
                                                                  model_configs[model_index].model.encoder_mean.l_constant, 
                                                                  model_configs[model_index].model.encoder_std_dev.l_constant, 
                                                                  r, encoder_std_dev.norm(p=2))
                 bound_margins.append(process_bound_inequality_result(bound_inequality_result))
+            if model_configs[model_index].model.linear.type != "standard" and 'gamma' in model_configs[model_index].model.encoder_std_dev:
+                bound_margins.append(bound_margin)
         if model_configs[model_index].model.linear.type == "standard":
             model_margins.append(("Standard VAE", image_margins))
         else:
@@ -191,12 +205,12 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
         ax[model_index].set_ylim([0, max_frequency + 2])
         ax[model_index].set_ylabel("Frequency")
         if model_index == (len(models) - 1):
-            ax[model_index].set_xlabel(r"Estimated $R_\mathcal{X}^r(x)$")
+            ax[model_index].set_xlabel(r"Estimated $R^r(x)$")
         else:
             ax[model_index].set_xticks([])
             ax[model_index].set_xlabel("")
         ax[model_index].legend()
-    fig.suptitle(r"Estimated $R_\mathcal{X}^r(x)$ for" + " r={}".format(r))
+    fig.suptitle(r"Estimated $R^r(x)$ for" + " r={}".format(r))
     plotting_dir = "out/vae/attacks/R_margins/"
     if d_ball_init:
         fig.savefig(plotting_dir + "estimated_R_margins_d_ball_init_certified_{}.png".format(str(certified).lower()), dpi=300)
@@ -208,15 +222,21 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
         if model_configs[model_index].model.linear.type != "standard":
             max_value = max(max(model_margins[model_index][2]), max(model_margins[model_index][1]))
             plt.clf()
-            plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[model_index], linestyle='None', marker='o', fillstyle='full')
+            if not fixed_std_dev:
+                plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[model_index], linestyle='None', marker='o', fillstyle='full')
+            else:
+                plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[1], linestyle='None', marker='o', fillstyle='full')
             print("Estimated R margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][1]))
             print("Theoretical R margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][2]))
             plt.plot(np.linspace(0, max_value), np.linspace(0, max_value), color='black')
-            plt.xlabel(r"$R_\mathcal{X}^r(x)$ bound (log scale)")
+            plt.xlabel(r"$R^r(x)$ bound (log scale)")
             plt.xscale('log')
-            plt.ylabel(r"Estimated $R_\mathcal{X}^r(x)$")
-            plt.title(r"Estimated $R_\mathcal{X}^r(x)$ vs. $R_\mathcal{X}^r(x)$ bound for" + " r={}".format(r) + "\n Lipschitz constant: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant)))
-            saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}_certified_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant), str(certified).lower())
+            plt.ylabel(r"Estimated $R^r(x)$")
+            plt.title(r"Estimated $R^r(x)$ vs. $R^r(x)$ bound for" + " r={}".format(r) + "\n Lipschitz constant: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant)))
+            if not fixed_std_dev:
+                saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}_certified_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant), str(certified).lower())
+            else:
+                saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}_fixed_std_dev.png".format(str(model_configs[model_index].model.encoder_mean.l_constant))
             plt.savefig(plotting_dir + saving_name, dpi=300)
             plt.clf()
 
@@ -282,11 +302,11 @@ def max_damage_attack_model(opt):
         # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
         get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
 
-        # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
-        get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
+    #     # # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
+    #     # get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
 
-    # Inspect estimated R margin w.r.t. model
-    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'], certified=opt['certified'])
+    # # Inspect estimated R margin w.r.t. model
+    # get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'], certified=opt['certified'], fixed_std_dev=opt['fixed_std_dev'])
 
 if __name__ == '__main__':
 
@@ -308,6 +328,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_random_inits', type=int, default=5, help='how many random initializations of attack noise to use (int)')
     parser.add_argument('--margin_granularity', type=float, default=0.5, help='spacing between candidate R margins (smaller gives more exact estimate for more computation)')
     parser.add_argument('--certified', type=bool, default=False, help='flag to indicate whether model being evaluated should be certifiably robust')
+    parser.add_argument('--fixed_std_dev', type=bool, default=False, help='flag to indicate whether VAE was trained with fixed encoder standard deviation')
 
     args = vars(parser.parse_args())
 
