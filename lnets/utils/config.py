@@ -28,7 +28,6 @@ class ConfigParse(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         options_dict = {}
         # BB: Commented out to deal with list of overrides
-        # for overrides in shlex.split(values):
         for overrides in values:
             k, v = overrides.split('=')
             k_parts = k.split('.')
@@ -43,9 +42,6 @@ class ConfigParse(argparse.Action):
 def get_config_overrides():
     parser = argparse.ArgumentParser(description='Experiments with Lipschitz networks')
     parser.add_argument('config', help='Base config file')
-    # BB: Commented out to deal with list of overrides
-    # parser.add_argument('-o', nargs='+', action=ConfigParse,
-    #                     help='Config option overrides. Separated like: e.g. optim.lr_init=1.0,,optim.lr_decay=0.1')
     parser.add_argument('-o', nargs='+', action=ConfigParse,
                         help='Config option overrides. Separated like: e.g. -o optim.lr_init=1.0 optim.lr_decay=0.1')
     parser.add_argument('--saving_tag', type=str, default="", help='Note to add to output directory to distinguish between experiments')
