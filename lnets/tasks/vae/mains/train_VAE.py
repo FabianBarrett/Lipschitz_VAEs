@@ -1,7 +1,5 @@
 # BB: Written starting July 11 
-# BB: Largely copied from train_classifier.py
-
-# BB: Run using e.g.: pythonw ./lnets/tasks/vae/mains/train_VAE.py ./lnets/tasks/vae/configs/binarized_mnist/fc_VAE_bjorck.json -o model.linear.bjorck_iter=3
+# BB: Based on train_classifier.py
 
 from functools import partial
 from tqdm import tqdm
@@ -133,9 +131,6 @@ def train(model, loaders, config, finetune=False, saving_tag=""):
     best_model_path = os.path.join(dirs.best_path, "best_model.pt")
     if os.path.exists(best_model_path):
         model.load_state_dict(torch.load(best_model_path))
-    # if loaders['test'] is not None:
-    #     print("Testing the best model. ")
-    #     logger.log_meters('test', trainer.test(model, loaders['test']))
 
     return model
 

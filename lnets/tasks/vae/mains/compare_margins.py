@@ -1,3 +1,5 @@
+# Plot the certified margins implied by Margin Bounds 1 and 2 in the same figure
+
 import argparse
 import os
 from munch import Munch

@@ -1,5 +1,4 @@
 # BB: Written starting July 28
-# Run with e.g. pythonw ./lnets/tasks/vae/mains/model_checks.py --model.exp_path=./out/vae/binarized_mnist/finetuned/model_directory
 
 import argparse
 import os
@@ -49,12 +48,6 @@ def check_model(opt):
 
     # BB: Convert linear layers from Bjorck layers to standard linear layers
     standard_model = convert_VAE_from_bjorck(bjorck_model, model_config)
-
-    # standard_model.eval()
-
-    # # BB: Visualize reconstructions prior to final orthonormalization
-    # # BB: Note, these are poor because the model expects orthonormalization in the forward pass
-    # visualize_reconstructions(standard_model, data['test'], model_config, title_string='Standard linear layers (not orthonormalized)')
 
     # BB: Orthonormalize the final weight matrices
     orthonormalized_standard_model = orthonormalize_model(standard_model, model_config, iters=opt['ortho_iters'])

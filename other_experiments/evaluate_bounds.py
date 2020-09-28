@@ -202,9 +202,7 @@ if __name__ == "__main__":
 		estimated_shifted_scaled_probabilities = [estimated_shifted_scaled_probabilities[index][1] for index in range(len(estimated_shifted_scaled_probabilities))]
 		print("Quantiles: {}".format(np.round(quantiles, 2)))
 		print("Estimated probabilities: {}".format(np.round(estimated_probabilities, 2)))
-		# Upper bound estimated probabilities is the RHS of eq. (3) in Tom's Notes of VAE Robustness Bounds
 		print("Upper bound estimated probabilities: {}".format(np.round(estimated_shifted_probabilities, 2)))
-		# Upper upper bound estimated probabilities is the term in (6) in Tom's Notes of VAE Robustness Bounds
 		print("Upper upper bound estimated probabilities: {}".format(np.round(estimated_shifted_scaled_probabilities, 2)))
 		print("Markov bounds: {}".format(np.round(markov_bounds, 2)))
 		print("Chi_2 bounds: {}".format(np.round(chi_2_bounds, 2)))

@@ -55,7 +55,6 @@ def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_i
 
     return (torch.tensor(noise).view(1, 1, config.data.im_height, config.data.im_width)).float(), adversarial_losses
 
-# BB: Note the following is to be extended / built upon (i.e. further plots to come)
 def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num_images, num_estimation_samples, r, num_random_inits, d_ball_init=True):
 
     sample = next(iter(iterator))
@@ -98,7 +97,6 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
         plt.clf()
         for model_results_index in range(len(results)):
         	plt.plot(noise_norms.numpy(), np.array(results[model_results_index][1]), label=results[model_results_index][0], color=colors[model_results_index])
-            # plt.plot(noise_norms.numpy(), np.array(model_results[1]), label=model_results[0])
         plt.legend()
         plt.xlabel(r"$|\delta_x|$")
         plt.ylabel(r"$\mathbb{P}(||\Delta||_2 \leq r)$")
@@ -112,10 +110,8 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
         plt.savefig(plotting_dir + saving_string, dpi=300)
         plt.clf()
 
-# BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
-# BB: I wonder whether instead of having a single attack applied multiple times one could run several attacks (i.e. 1 attack for each estimation_sample)
+# BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts (we add random restarts)
 def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True):
-    # BB: Remember to adjust (i.e. increase) the granularity when creating final plots
     candidate_margins = np.arange(1e-6, max_R, margin_granularity)
     estimated_probabilities = []
     for random_init in range(num_random_inits):
@@ -302,11 +298,11 @@ def max_damage_attack_model(opt):
         # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
         get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
 
-    #     # # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
-    #     # get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
+        # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
+        get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
 
-    # # Inspect estimated R margin w.r.t. model
-    # get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'], certified=opt['certified'], fixed_std_dev=opt['fixed_std_dev'])
+    # Inspect estimated R margin w.r.t. model
+    get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'], certified=opt['certified'], fixed_std_dev=opt['fixed_std_dev'])
 
 if __name__ == '__main__':
 

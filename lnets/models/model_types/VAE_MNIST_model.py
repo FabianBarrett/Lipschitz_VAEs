@@ -1,4 +1,4 @@
-# BB: Written starting July 11 and based heavily on classification_model.py
+# BB: Written starting July 11
 
 import torch
 import torch.nn.functional as functional
@@ -26,17 +26,13 @@ class VAEMNISTModel(ExperimentModel):
             LL_term = continuous_bernoulli_likelihood.log_prob(reshaped_inputs).sum()
             NLLs = (-1.0) * continuous_bernoulli_likelihood.log_prob(reshaped_inputs).sum(dim=1)
         else:
-            # LL_term = (reshaped_inputs * reconstructions.log() + (1.0 - reshaped_inputs) * (1.0 - reconstructions).log()).sum()
-            # NLLs = (-1.0) * (reshaped_inputs * reconstructions.log() + (1.0 - reshaped_inputs) * (1.0 - reconstructions).log()).sum(dim=1)
             bernoulli_likelihood = ds.bernoulli.Bernoulli(probs=reconstructions)
             LL_term = bernoulli_likelihood.log_prob(reshaped_inputs).sum()
             NLLs = (-1.0) * bernoulli_likelihood.log_prob(reshaped_inputs).sum(dim=1)
     
         if check_likelihood:
-            # return (-1.0) * (self.model.training_set_size / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions, NLLs
             return (-1.0 / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions, NLLs
         else:
-            # return (-1.0) * (self.model.training_set_size / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions
             return (-1.0 / reshaped_inputs.shape[0]) * (KL_term + LL_term), reconstructions
 
     def get_latents(self, x):

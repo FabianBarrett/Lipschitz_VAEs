@@ -1,4 +1,4 @@
-# BB: VAE with a fully-connected encoder / decoder and diagonal Gaussian posterior (modeled heavily on fully_connected.py)
+# BB: VAE with a fully-connected encoder / decoder and diagonal Gaussian posterior
 
 import torch
 import torch.nn as nn
@@ -119,16 +119,11 @@ class fcMNISTVAE(Architecture):
                             config=config))
             layers.append(Scale(l_constant_per_layer, cuda=self.config.cuda))
 
-            # if function != 'encoder_mean' and i == (len(eval('self.' + function + '_layer_sizes')) - 2):
-            #     layers.append(nn.Sigmoid())
-
         if function != 'encoder_mean':
             layers.append(nn.Sigmoid())
 
         if function == 'encoder_std_dev' and 'desired_radius' in config.model.encoder_std_dev:
-            # Based on our bound, Max_norm should be \sqrt{\frac{1}{8}} * (r / a) 
-            # where a is decoder.l_constant and r is desired radius for certifiable r-robustness
-            # We subtract some small value (e.g. 1e-4) to ensure the robustness margin is positive rather than just 0
+            # Constrains the encoder standard deviation norm such that certified robustness is met
             max_norm =  max((1.0 / np.sqrt(8)) * (config.model.encoder_std_dev.desired_radius / self.decoder_l_constant) - 1e-4, 0)
             layers.append(Clip(max_norm, cuda=self.config.cuda))
 
@@ -160,7 +155,7 @@ class fcMNISTVAE(Architecture):
 
     # BB: Code taken but slightly adapted from Alex Camuto and Matthew Willetts
     # Note: maximum_noise_norm defines maximum radius of ball induced by noise around datapoint
-    # If not scale, then clipping (i.e. upper bound on norm rather than tight constraint)
+    # If not "scale", then "clipping" (i.e. upper bound on norm rather than tight constraint)
     def eval_max_damage_attack(self, x, noise, maximum_noise_norm, scale=False):
 
         noise = torch.tensor(noise)

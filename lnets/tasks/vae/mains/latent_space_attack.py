@@ -16,7 +16,6 @@ from lnets.data.load_data import load_data
 from lnets.models.utils.conversion import convert_VAE_from_bjorck
 from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, get_target_image, sample_d_ball
 
-# BB: Note I haven't checked the internals of this thoroughly
 # BB: Taken but adapted from Alex Camuto and Matthew Willetts
 def latent_space_optimize_noise(model, config, image, target_image, initial_noise, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
@@ -99,12 +98,10 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
         plt.imshow(lipschitz_image_compilation.detach().squeeze().numpy())
         plt.axis('off')
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        # image_caption = "\n Left to right: Original image, original reconstruction, \n noise, noisy image, noisy reconstruction, target image"
         if soft:
             plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Regularization coefficient: {}".format(regularization_coefficient)) # + image_caption)
             plt.savefig(plotting_dir + "latent_attack_{}_soft_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
         else:
-            # plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Maximum perturbation norm: {}".format(maximum_noise_norm)) # + image_caption)
             plt.savefig(plotting_dir + "latent_attack_{}_hard_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
 
         plt.figure(figsize = (9, 3))
@@ -115,7 +112,6 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
             plt.title("Latent space attack on standard VAE" + "\n Regularization coefficient: {}".format(regularization_coefficient)) # + image_caption)
             plt.savefig(plotting_dir + "latent_attack_{}_soft_comparison_for_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
         else:
-            # plt.title("Latent space attack on standard VAE" + "\n Maximum perturbation norm: {}".format(maximum_noise_norm)) # + image_caption)
             plt.savefig(plotting_dir + "latent_attack_{}_hard_comparison_for_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
 
 

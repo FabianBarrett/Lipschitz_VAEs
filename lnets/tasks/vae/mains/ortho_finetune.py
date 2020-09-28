@@ -1,5 +1,4 @@
 # BB: Written starting July 15
-# BB: Run with the following command: pythonw ./lnets/tasks/vae/mains/ortho_finetune.py --model.exp_path=<trained_bjorck_model_path.pt> 
 
 """
 Do finetuning to ensure that the VAE's weight matrices are actually orthonormal.
@@ -70,7 +69,6 @@ if __name__ == '__main__':
 
     parser.add_argument('--model.exp_path', type=str, metavar='MODELPATH',
                         help="location of pretrained model weights to evaluate")
-    # BB: Check my renaming of the directory didn't break anything
     parser.add_argument('--output_root', type=str, default="./out/vae/",
                         help='output directory to which results should be saved')
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")

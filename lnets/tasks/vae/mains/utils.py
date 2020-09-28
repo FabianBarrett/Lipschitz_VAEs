@@ -1,4 +1,6 @@
 # BB: Written starting July 26
+# Helper functions
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import os
@@ -27,7 +29,6 @@ def get_log_likelihood_Lipschitz_plot(models, model_configs, iterator):
     plt.plot(l_constants, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
     plt.ylabel("Mean Continuous Bernoulli log likelihood on test set")
     plt.xlabel("Lipschitz constant")
-    # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
     plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/log_likelihoods.png', dpi=300)
     plt.clf()
 
@@ -47,7 +48,6 @@ def get_encoder_std_dev_Lipschitz_plot(models, model_configs, iterator):
     plt.plot(l_constants, model_mean_encoder_std_dev_norms, color=colors[1], linestyle='None', marker='o', fillstyle='full')
     plt.ylabel(r"Mean $||\sigma_\phi(x)||_2$ on test set")
     plt.xlabel("Lipschitz constant")
-    # plt.title("Reconstruction quality w.r.t. Lipschitz constant")
     plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/encoder_std_devs.png', dpi=300)
     plt.clf()
 
@@ -129,7 +129,7 @@ def get_target_image(batch, input_class, input_index, num_images):
         image_index += 1
     raise RuntimeError("No appropriate target image found.")
 
-# Weird required hack to fix groupings
+# Required hack inherited from Anil et al., 2019 to fix groupings
 def fix_groupings(config):
 
     if 'groupings' in config.model.encoder_mean and config.model.encoder_mean.groupings[0] is -1:

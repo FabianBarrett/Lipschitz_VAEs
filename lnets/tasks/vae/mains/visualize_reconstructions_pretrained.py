@@ -1,6 +1,7 @@
 # BB: Written starting July 16
 
-# BB: Run with e.g. python ./lnets/tasks/vae/mains/visualize_reconstructions_pretrained.py --model.exp_path=<trained_bjorck_model_path.pt> 
+# Visualize the reconstructions of trained models
+
 
 import argparse
 import os
