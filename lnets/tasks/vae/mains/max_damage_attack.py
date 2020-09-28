@@ -1,3 +1,5 @@
+# Implements maximum damage attacks for quantitative evaluation of VAE robustness
+
 import argparse
 import os
 from munch import Munch

@@ -1,4 +1,4 @@
-# BB: VAE with a fully-connected encoder / decoder and diagonal Gaussian posterior
+# BB: Implements the architecture of a VAE with a fully-connected encoder / decoder and diagonal Gaussian posterior
 
 import torch
 import torch.nn as nn

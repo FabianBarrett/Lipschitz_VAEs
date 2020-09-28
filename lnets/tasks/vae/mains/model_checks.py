@@ -1,5 +1,7 @@
 # BB: Written starting July 28
 
+# Verifies the orthonormality of the encoder and decoder network weight matrices
+
 import argparse
 import os
 from munch import Munch

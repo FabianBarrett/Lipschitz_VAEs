@@ -1,5 +1,7 @@
 # BB: Written starting August 14
 
+# Implements latent space attacks for qualitative evaluation of VAE robustness
+
 import argparse
 import os
 from munch import Munch

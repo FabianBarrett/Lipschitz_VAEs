@@ -1,5 +1,7 @@
 # BB: Written starting July 11
 
+# Computes the learning objective for a VAE on MNIST, using either Continuous Bernoulli or Bernoulli likelihoods
+
 import torch
 import torch.nn.functional as functional
 from torch.autograd import Variable

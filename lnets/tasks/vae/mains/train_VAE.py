@@ -1,5 +1,6 @@
 # BB: Written starting July 11 
 # BB: Based on train_classifier.py
+# Training function for VAEs
 
 from functools import partial
 from tqdm import tqdm
