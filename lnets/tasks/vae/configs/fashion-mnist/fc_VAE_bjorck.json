@@ -1,7 +1,7 @@
 {
     "cuda": false,
     "task": "vae",
-    "output_root": "out/vae/mnist",
+    "output_root": "out/vae/fashion-mnist",
     "exp_name": "lipschitz_bjorck_vae",
     "seed": 0,
     "model": {
@@ -18,7 +18,7 @@
         "bias": true
       },
       "encoder_mean": {
-        "l_constant": 5.0, 
+        "l_constant": 2.0, 
         "layers": [
           512, 
           512, 
@@ -31,7 +31,7 @@
         ]
       },
       "encoder_std_dev": {
-        "l_constant": 5.0, 
+        "l_constant": 2.0, 
         "layers": [
           512,
           512, 
@@ -41,11 +41,10 @@
           2, 
           2,
           1
-        ],
-        "std_dev_norm": 0.5
+        ]
       }, 
       "decoder": {
-        "l_constant": 5.0, 
+        "l_constant": 2.0, 
         "layers": [
           512,
           512,
@@ -107,12 +106,12 @@
       "max_grad_norm": 1e8
     },
     "data": {
-      "name": "mnist",
+      "name": "fashion-mnist",
       "root": "data",
       "indices_path": null,
       "per_class_count": 30,
       "transform": {
-        "type": "mnist"
+        "type": "fashion-mnist"
       },
       "validation": true,
       "train_size": 0.9,

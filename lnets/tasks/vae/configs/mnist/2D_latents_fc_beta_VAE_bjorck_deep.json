@@ -21,12 +21,18 @@
         "l_constant": 5.0, 
         "layers": [
           512, 
+          512,
           512, 
-          10
+          512, 
+          512, 
+          2
         ],
         "groupings": [
           2, 
           2,
+          2, 
+          2, 
+          2, 
           1
         ]
       },
@@ -35,28 +41,40 @@
         "layers": [
           512,
           512, 
-          10
+          512, 
+          512, 
+          512,
+          2
         ], 
         "groupings": [
           2, 
           2,
+          2, 
+          2, 
+          2, 
           1
-        ],
-        "std_dev_norm": 0.5
+        ]
       }, 
       "decoder": {
         "l_constant": 5.0, 
         "layers": [
           512,
           512,
+          512, 
+          512, 
+          512, 
           784
         ], 
         "groupings": [
           2, 
           2,
+          2, 
+          2, 
+          2, 
           1]
       }, 
-      "latent_dim": 10,
+      "latent_dim": 2,
+      "KL_beta": 10.0,
       "per_epoch_proj": {
         "turned_on": false,
         "every_n_epochs": 1,
@@ -89,7 +107,7 @@
         "last_epoch": -1
       },
       "to_convergence": true,
-      "convergence_tol": 1e0,
+      "convergence_tol": 10.0,
       "epochs": 10,
       "batch_size": 128,
       "momentum": 0.9,

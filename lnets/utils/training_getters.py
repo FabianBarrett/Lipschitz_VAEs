@@ -108,8 +108,10 @@ def get_VAE_experiment_name(config, saving_tag=""):
     if saving_tag != "":
         if "standard" in saving_tag:
             VAE_exp_name = "VAE_" + "latent_dim_{}_".format(config.model.latent_dim) + saving_tag
+        elif "gamma" in saving_tag:
+            VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_latent_dim_{}_".format(config.model.latent_dim) + "{}_".format(str(config.model.encoder_std_dev.gamma)) + saving_tag
         else:
-            VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_latent_dim_{}_".format(config.model.latent_dim) + saving_tag  
+            VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_latent_dim_{}_".format(config.model.latent_dim) + saving_tag
     else: 
         VAE_exp_name = "lipschitz_" + str(config.model.encoder_mean.l_constant) + "_latent_dim_{}".format(config.model.latent_dim)
     return VAE_exp_name

@@ -81,7 +81,10 @@ class fcMNISTVAE(Architecture):
         encoder_mean = self.encoder_mean(x)
         if self.gamma is None:
             encoder_std_dev = self.encoder_std_dev(x)
-        else: 
+        else:
+            # print("Gamma value: {}".format(self.gamma))
+            # print("Reached gamma forward pass")
+            # raise RuntimeError
             encoder_std_dev = self.gamma * torch.ones(encoder_mean.shape)
         z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
         return self.decoder(z), encoder_mean, encoder_std_dev
@@ -122,9 +125,9 @@ class fcMNISTVAE(Architecture):
         if function != 'encoder_mean':
             layers.append(nn.Sigmoid())
 
-        if function == 'encoder_std_dev' and 'desired_radius' in config.model.encoder_std_dev:
+        if function == 'encoder_std_dev' and 'std_dev_norm' in config.model.encoder_std_dev:
             # Constrains the encoder standard deviation norm such that certified robustness is met
-            max_norm =  max((1.0 / np.sqrt(8)) * (config.model.encoder_std_dev.desired_radius / self.decoder_l_constant) - 1e-4, 0)
+            max_norm = config.model.encoder_std_dev.std_dev_norm
             layers.append(Clip(max_norm, cuda=self.config.cuda))
 
         return layers
@@ -156,7 +159,10 @@ class fcMNISTVAE(Architecture):
     # BB: Code taken but slightly adapted from Alex Camuto and Matthew Willetts
     # Note: maximum_noise_norm defines maximum radius of ball induced by noise around datapoint
     # If not "scale", then "clipping" (i.e. upper bound on norm rather than tight constraint)
+    # def eval_max_damage_attack(self, x, noise, maximum_noise_norm, scale=False, gamma=None):
     def eval_max_damage_attack(self, x, noise, maximum_noise_norm, scale=False):
+
+        # self.gamma = gamma
 
         noise = torch.tensor(noise)
         x = torch.tensor(x)
@@ -170,7 +176,10 @@ class fcMNISTVAE(Architecture):
                 noise = maximum_noise_norm * noise.div(noise.norm(p=2))
         noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
 
+        # print("X dims: {}".format(x.shape))
+
         original_reconstruction, _, _ = self.forward(x.view(-1, self.input_dim).float())
+        # original_reconstruction, _, _ = self.forward(x.float())
         noisy_reconstruction, _, _ = self.forward(noisy_x.float())
 
         # BB: Note this is the maximum damage objective

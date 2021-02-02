@@ -16,7 +16,7 @@ def get_datasets(config):
     val_data_args = dict(download=True, transform=test_transform)
     test_data_args = dict(train=False, download=True, transform=test_transform)
 
-    if data_name == 'mnist' or 'binarized_mnist':
+    if data_name == 'mnist':
         train_data = datasets.MNIST(path, **train_data_args)
         val_data = datasets.MNIST(path, **val_data_args)
         test_data = datasets.MNIST(path, **test_data_args)

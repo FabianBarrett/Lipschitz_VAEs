@@ -19,6 +19,7 @@ from lnets.utils.training_getters import get_training_dirs
 from lnets.tasks.vae.mains.utils import visualize_reconstructions
 
 def train(model, loaders, config, finetune=False, saving_tag=""):
+
     # Set the seed.
     set_experiment_seed(config.seed)
 

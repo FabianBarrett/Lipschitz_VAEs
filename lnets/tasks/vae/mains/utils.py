@@ -7,13 +7,15 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+import seaborn as sns
 from lnets.models.layers import BjorckLinear, DenseLinear, StandardLinear
 from lnets.utils.math.projections import bjorck_orthonormalize
 from sympy.abc import x
 from sympy import Poly, Interval, FiniteSet
 from sympy.solvers.inequalities import solve_poly_inequality
 
-def get_log_likelihood_Lipschitz_plot(models, model_configs, iterator):
+def get_log_likelihood_Lipschitz_plot(margins, models, model_configs, iterator):
+    # models = [i for i in range(6)]
     # Assumes encoder and decoder take the same Lipschitz constant
     l_constants = [model_config.model.encoder_mean.l_constant for model_config in model_configs[:len(model_configs) - 1]]
     model_mean_NLLs = []
@@ -25,11 +27,31 @@ def get_log_likelihood_Lipschitz_plot(models, model_configs, iterator):
         NLLs = check_NLL(model, iterator)
         model_mean_NLLs.append((-1.0) * NLLs.mean())
     colors = [color for color in mcolors.TABLEAU_COLORS]
+
+    mean_margins = [np.array(margins[index][1]).mean() for index in range(len(models) - 1)]
+    # l_constants = [5, 6, 7, 8, 9, 10]
+    # mean_margins = [9, 8, 7, 6, 5, 4]
+    # model_mean_NLLs = [1500, 1550, 1600, 1650, 1700, 1750]
+
     plt.clf()
-    plt.plot(l_constants, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
-    plt.ylabel("Mean Continuous Bernoulli log likelihood on test set")
-    plt.xlabel("Lipschitz constant")
-    plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/log_likelihoods.png', dpi=300)
+    sns.set(style="whitegrid", font_scale=1.5)
+    # sns.set(rc={"figure.figsize": (4, 4)}, style="whitegrid", font_scale=1.5)
+    # for index in range(len(models) - 1):
+        # plt.text(mean_margins[index], model_mean_NLLs[index], "Lipschitz constant {}".format(l_constants[index]))
+        # plt.text(mean_margins[index], model_mean_NLLs[index], "L {}".format(l_constants[index]))
+    # plt.plot(l_constants, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
+    # for index in range(len(l_constants)):
+    #     plt.plot(mean_margins[index], model_mean_NLLs[index], color=colors[index], linestyle='None', marker='o', fillstyle='full', label="Lip. const. {}".format(l_constants[index]))
+    plt.plot(mean_margins, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
+    for index in range(len(l_constants)):
+        plt.annotate("({})".format(l_constants[index]), xy=(mean_margins[index], model_mean_NLLs[index]), xytext=(mean_margins[index] + 0.1, model_mean_NLLs[index] + 0))
+    plt.ylabel("Mean test log likelihood")
+    plt.xlabel(r"Mean estimated $R^r(x)$")
+    # plt.legend()
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/pareto_frontier.png', dpi=300)
+    # plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/log_likelihoods.png', dpi=300)
     plt.clf()
 
 def get_encoder_std_dev_Lipschitz_plot(models, model_configs, iterator):
@@ -72,6 +94,11 @@ def process_bound_inequality_result(bound_inequality_result):
 def compute_C_m(m):
     return (1 / np.sqrt(np.pi)) * np.exp(0.5 * (m - (m - 1) * np.log(m)))
 
+def compute_data_dep_u(r, a, b, c, encoder_std_dev_norm, x):
+    numerator = ((r / a) - b * x) ** 2
+    denominator = (c * x + 2 * encoder_std_dev_norm) **  2
+    return numerator / denominator
+
 def compute_u(r, a, b, gamma, x):
     numerator = ((r / a) - b * x) ** 2
     denominator = 2 * (gamma ** 2)
@@ -95,6 +122,7 @@ def compute_bound_expression(a, b, gamma, r, m, x):
     full_bound_expression = C_m * main_term - 0.5
     return full_bound_expression
 
+# Implicitly assumes dimension of latent space >= 2
 def solve_bound_2(a, b, gamma, r, m):
     perturbation_upper_bound = r / (a * b)
     x_values = np.linspace(0, perturbation_upper_bound, num=200)
@@ -107,6 +135,32 @@ def solve_bound_2(a, b, gamma, r, m):
         return 0.0
     else:
         return solution
+
+def compute_data_dep_bound_expression(a, b, c, r, m, encoder_std_dev_norm, x):
+    # Compute the quantile
+    u = compute_data_dep_u(r, a, b, c, encoder_std_dev_norm, x)
+    if u <= (m - 2):
+        return np.nan
+    # Get the coefficient that depends on m in the bound
+    C_m = compute_C_m(m)
+    # Compute the main term
+    main_term = compute_main_term(u, m)
+    # Put everything together
+    full_bound_expression = C_m * main_term - 0.5
+    return full_bound_expression
+
+# Implicitly assumes dimension of latent space >= 2
+def solve_data_dep_bound_2(a, b, c, r, m, encoder_std_dev_norm):
+    perturbation_upper_bound = r / (a * b)
+    x_values = np.linspace(0, perturbation_upper_bound, num=200)
+    y_values = []
+    solution = (-1)
+    for x_value in x_values:
+        y_value = compute_data_dep_bound_expression(a, b, c, r, m, encoder_std_dev_norm, x_value)
+        y_values.append(y_value)
+        if y_value <= 0 and x_value > solution:
+            solution = x_value
+    return max(0.0, solution)
 
 # Adapted from http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
 # BB: Note that this doesn't exactly sample uniformly from the interior of a ball with the specified radius (due to scaling at the end)
