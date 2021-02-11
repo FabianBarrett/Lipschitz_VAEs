@@ -1,5 +1,3 @@
-# BB: Written starting July 28
-
 # Verifies the orthonormality of the encoder and decoder network weight matrices
 
 import argparse
@@ -41,32 +39,32 @@ def check_model(opt):
     model_config.data.cuda = opt['data']['cuda']
     data = load_data(model_config)
 
-    # BB: Assumes encoder and decoder have same Lipschitz constants
+    # Assumes encoder and decoder have same Lipschitz constants
     l_constant = model_config.model.encoder_mean.l_constant
 
     if opt['visualize']:
-        # BB: Visualize reconstructions prior to model conversion, assumes encoder and decoder have same Lipschitz constants
+        # Visualize reconstructions prior to model conversion, assumes encoder and decoder have same Lipschitz constants
         visualize_reconstructions(bjorck_model, data['test'], model_config, title_string='Bjorck linear layers \n Lipschitz constant {}'.format(l_constant))
 
-    # BB: Convert linear layers from Bjorck layers to standard linear layers
+    # Convert linear layers from Bjorck layers to standard linear layers
     standard_model = convert_VAE_from_bjorck(bjorck_model, model_config)
 
-    # BB: Orthonormalize the final weight matrices
+    # Orthonormalize the final weight matrices
     orthonormalized_standard_model = orthonormalize_model(standard_model, model_config, iters=opt['ortho_iters'])
 
     orthonormalized_standard_model.eval()
 
     if opt['visualize']:
-        # BB: Visualize reconstructions after conversion and final orthonormalization, assumes encoder and decoder have same Lipschitz constants
+        # Visualize reconstructions after conversion and final orthonormalization, assumes encoder and decoder have same Lipschitz constants
         visualize_reconstructions(orthonormalized_standard_model, data['test'], model_config, title_string='Orthonormalized standard linear layers ({} iters) \n Lipschitz constant {}'.format(opt['ortho_iters'], l_constant))
 
-    # BB: Inspect singular values of weight matrices after final orthonormalization
+    # Inspect singular values of weight matrices after final orthonormalization
     check_VAE_singular_values(orthonormalized_standard_model)
 
-    # BB: Check orthonormality of weight matrices after final orthonormalization
+    # Check orthonormality of weight matrices after final orthonormalization
     check_VAE_orthonormality(orthonormalized_standard_model)
 
-    # BB: Check negative log likelihood is on order of what would be expected from well-trained VAE
+    # Check negative log likelihood is on order of what would be expected from well-trained VAE
     check_NLL(orthonormalized_standard_model, data['test'])
 
 

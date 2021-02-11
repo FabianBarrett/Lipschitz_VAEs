@@ -10,7 +10,7 @@ def convert_to_bjorck_module(module_list, config):
         m = module_list[i]
         if isinstance(m, DenseLinear):
             new_linear = BjorckLinear(m.in_features, m.out_features, m.bias is not None, config)
-            # BB: Commented out since I think orthonormalization should be distinct from exchanging the type of layers
+            # Commented out since orthonormalization should be distinct from exchanging the type of layers
             # new_linear.weight.data.copy_(bjorck_orthonormalize(m.weight, iters=30))
             new_linear.weight.data.copy_(m.weight)
             new_linear.bias.data.copy_(m.bias)

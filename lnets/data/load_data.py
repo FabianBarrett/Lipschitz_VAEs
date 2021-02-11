@@ -53,8 +53,6 @@ def build_loaders(config, train_data, val_data, test_data):
         train_data = Subset(train_data, train_indices)
         val_data = Subset(val_data, val_indices)
 
-    # BB: I rewrote this using torch.utils.data.Subset to avoid issues with subsetting the training data via slicing and then assigning it to itself (was throwing AttributeError)
-    # BB: I also added 'N' to the config dictionary for loss computation with VAEs.
     elif data_name != 'imagenet-torchvision':
         # Manually readjust train/val size for memory saving.
         data_size = len(train_data)

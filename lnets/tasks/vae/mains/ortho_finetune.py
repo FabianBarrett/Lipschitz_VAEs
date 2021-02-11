@@ -1,4 +1,3 @@
-# BB: Written starting July 15
 
 """
 Do finetuning to ensure that the VAE's weight matrices are actually orthonormal.

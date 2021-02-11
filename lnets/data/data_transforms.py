@@ -9,7 +9,6 @@ def get_data_transforms(config):
         train_transform, test_transform = get_cifar_transform(config)
     elif config.data.transform.type == 'imagenet':
         train_transform, test_transform = get_imagenet_transform(config)
-    # BB: Adding to get binarized MNIST
     elif config.data.transform.type == 'binarized_mnist':
         train_transform, test_transform = get_binarized_mnist_transform(config)
     else:
@@ -21,7 +20,6 @@ def get_data_transforms(config):
 
     return train_transform, test_transform
 
-# BB: Added transforms to get binarized MNIST
 def get_binarized_mnist_transform(config):
     train_transform = transforms.Compose([transforms.ToTensor(), 
                     transforms.Lambda(lambda tensor: tensor.round())])

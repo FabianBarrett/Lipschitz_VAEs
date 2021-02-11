@@ -1,5 +1,4 @@
-# BB: Written starting July 11 
-# BB: Based on train_classifier.py
+# Based on train_classifier.py
 # Training function for VAEs
 
 from functools import partial
@@ -121,7 +120,7 @@ def train(model, loaders, config, finetune=False, saving_tag=""):
     trainer.hooks['on_start_epoch'] = on_start_epoch
     trainer.hooks['on_end_epoch'] = partial(on_end_epoch, {'best_val': best_val, 'wait': 0})
 
-    # BB: Hacky solution to get trainer to run to convergence if config file says to do so
+    # Hacky solution to get trainer to run to convergence if config file says to do so
     if config.optim.to_convergence:
         trainer.train(model, loaders['train'], maxepoch=sys.maxsize, optimizer=optimizer, convergence_tol=config.optim.convergence_tol)
     else:

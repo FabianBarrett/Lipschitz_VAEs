@@ -1,4 +1,3 @@
-# This code has been modified for the purpose of experimentation; do not use out-of-the-box / comment out certain args
 l_constants=( 5.0 )
 saving_tag="continuous_bernoulli_std_dev_better_convergence"
 for l_constant in "${l_constants[@]}"

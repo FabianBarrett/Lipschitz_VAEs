@@ -27,7 +27,6 @@ def update(d, u):
 class ConfigParse(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         options_dict = {}
-        # BB: Commented out to deal with list of overrides
         for overrides in values:
             k, v = overrides.split('=')
             k_parts = k.split('.')

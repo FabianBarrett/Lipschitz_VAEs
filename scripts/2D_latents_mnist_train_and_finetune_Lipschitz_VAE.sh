@@ -8,7 +8,6 @@ do
 	if [ "$saving_tag" == "" ]; then
 		pythonw ./lnets/tasks/vae/mains/ortho_finetune.py --model.exp_path=./out/vae/mnist/not_finetuned/lipschitz_${l_constant}_latent_dim_2
 	else 
-		# Remember to change this back for when using latent_dim=10
 		pythonw ./lnets/tasks/vae/mains/ortho_finetune.py --model.exp_path=./out/vae/mnist/not_finetuned/lipschitz_${l_constant}_latent_dim_2_${saving_tag} --saving_tag=${saving_tag}
 	fi
 done

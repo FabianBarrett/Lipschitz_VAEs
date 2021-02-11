@@ -1,8 +1,6 @@
-# Code for "Lipschitz VAEs: Certifiably Robust Variational Autoencoders"
+# Code for "Certifiably Robust Variational Autoencoders"
 
-*Provided in support of Ben Barrett's dissertation, in partial fulfilment of the degree of Master of Science in Statistical Science, University of Oxford, 2020.*
-
-This repository builds on the [implementation](https://github.com/cemanil/lnets) of Lipschitz-constrained fully-connected neural networks provided by Anil et al., 2019. We extend this code base to VAEs, providing code for the architecture, learning objective, and training of VAEs with Lipschitz-constrained encoders and decoders. We also provide code to evaluate the tightness of bounds used in the derivation of our main results, along with a number of scripts for experiments involving adversarial attacks on VAEs. 
+This repository provides code for the architecture, learning objective, and training of VAEs with Lipschitz-constrained encoders and decoders. We also provide code to evaluate the tightness of bounds used in the derivation of our main results, along with a number of scripts for experiments involving adversarial attacks on VAEs.
 
 ## Getting Started
 The following assumes first-time use.
@@ -42,13 +40,15 @@ lnets
 │               └── ortho_finetune.py       "Runs Bjorck Orthonormalization for more iterations."
 │               └── latent_space_attack.py  "Implements a latent space attack."
 │               └── max_damage_attack.py    "Implements maximum damage attacks and r-robustness margin estimation."
+│               └── compare_margins.py      "Compares estimated against theoretical robustness margins."
 │               └── model_checks.py         "Verifies the Lipschitz continuity constraints."
 │               └── visualize_latents.py    "Visualizes the learned encoder."
 │               └── utils.py                "Plotting and margin bound computation."
 │           └── configs
 │               └── mnist                   "Houses configuration files for different VAEs for MNIST."
+│               └── fashion-mnist           "Houses configuration files for fashion-MNIST."
 ├── other_experiments
-│   └── evaluate_bounds.py                  "Evaluates the tightness of intermediate steps in the derivation of Bounds 1 and 2."
+│   └── evaluate_bounds.py                  "Evaluates the tightness of intermediate steps in the derivation of the Probability Bound."
 ├── scripts                                 "Houses miscellaneous bash scripts to train different VAEs and run experiments."
 ```
 
@@ -57,5 +57,5 @@ The directory ```lnets/tasks/vae/configs``` contains a number of files to config
 * `model.linear.type`: Options include "standard" (a standard linear layer) and "bjorck" (a linear layer involving Bjorck Orthonormalization).
 * `model.latent_dim`: An integer specifying the dimension of the VAE latent space. 
 * `model.*.l_constant` (where `*` is a stand-in for `encoder_mean`, `encoder_std_dev` or `decoder`): The Lipschitz constant of the relevant model component.
-* `model.activation`: The default activations functions of each model component. Options include "relu" (the ReLU activation) and "groupsort" (the GroupSort activation from Anil et al., 2019).
+* `model.activation`: The default activations functions of each model component. Options include "relu" (the ReLU activation) and "groupsort" (the GroupSort activation).
 * `model.*.layers` (where `*` is again a stand-in for `encoder_mean`, `encoder_std_dev` or `decoder`): A list specifying the hidden dimensions of the linear layers constituting the relevant model component.

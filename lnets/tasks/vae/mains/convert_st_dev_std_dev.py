@@ -1,5 +1,4 @@
 # Converts old models trained under one naming convention to the new naming convention
-
 from munch import Munch
 import json
 import os

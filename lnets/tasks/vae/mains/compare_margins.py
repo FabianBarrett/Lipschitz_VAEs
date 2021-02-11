@@ -54,28 +54,20 @@ def compare_R_margins(models, model_configs, iterator, num_images, max_R, num_es
     colors = [color for color in mcolors.TABLEAU_COLORS][:len(models)]
 
     # Plot estimated R margins against margins implied by bounds
-    # plt.figure(figsize=(5, 5))
     sns.set(rc={"figure.figsize": (4, 4)}, style="whitegrid", font_scale=1.5)
     for model_index in range(len(models)):
         plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[0], linestyle='None', marker='o', fillstyle='full')
         print("Estimated R margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][1]))
         print("Theoretical margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][2]))
-    # max_value = (-1)
-    # for model_index in range(len(models)):
-    #     if max(max(model_margins[model_index][1]), max(model_margins[model_index][2])) > max_value:
-    #         max_value = max(max(model_margins[model_index][1]), max(model_margins[model_index][2]))
     plt.plot(np.linspace(0, 2), np.linspace(0, 2), color='black', label='y=x')
-    # plt.plot([0.5, 0.75], [0.5, 0.75], color='black', label='y=x')
     plt.xlabel(r"$R^r(x)$ bounds (log scale)")
     plt.ylabel(r"Estimated $R^r(x)$")
     plt.xscale('log')
     plt.ylim(-0.3, 6.1)
-    # plt.title(r"Estimated $R^r(x)$ vs. $R^r(x)$ bounds for" + " r={}".format(r))
     plt.legend()
     plt.tight_layout()
     plotting_dir = "out/vae/attacks/R_margins/"
-    # saving_string = "revised_estimated_vs_theoretical_R_margins_Lipschitz_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant))
-    saving_string = "fashion_mnist_estimated_vs_theoretical_R_margins_Lipschitz.png"
+    saving_string = "revised_estimated_vs_theoretical_R_margins_Lipschitz_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant))
     plt.savefig(plotting_dir + saving_string, dpi=300)
 
 def margin_comparison(opt):

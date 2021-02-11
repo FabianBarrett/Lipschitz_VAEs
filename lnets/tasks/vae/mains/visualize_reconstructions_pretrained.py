@@ -1,5 +1,3 @@
-# BB: Written starting July 16
-
 # Visualize the reconstructions of pre-trained models
 
 import argparse

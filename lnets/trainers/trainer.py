@@ -49,12 +49,6 @@ class Trainer(object):
                     state['output'] = output
                     state['loss'] = loss
 
-                    # print(50 * "*")
-                    # print("Iteration: {}".format(state['t']))
-                    # print("Input: {}".format(state['sample']))
-                    # print("Output: {}".format(output))
-                    # print("Loss: {}".format(loss))
-
                     if torch.isnan(loss):
                         raise RuntimeError("Loss diverged.")
                     loss.backward()
@@ -63,18 +57,7 @@ class Trainer(object):
 
                     state['previous_loss'] = loss
 
-                    # To free memory in save_for_backward,
-                    # state['output'] = None
-                    # state['loss'] = None
                     return loss
-
-                # for module in state['model'].modules():
-                #     if isinstance(module, BjorckLinear):
-                #         print(30 * "+")
-                #         print("Module dimensions: {}".format(module.weight.t().shape))
-                #         print("Module weights: {}".format(module.weight))
-                #         print("Module gradients: {}".format(module.weight.grad))
-                # print(50 * "*")
 
                 # On update.
                 state['optimizer'].zero_grad()
@@ -118,10 +101,6 @@ class Trainer(object):
                 state['output'] = output
                 state['loss'] = loss
                 self.hook('on_forward', state)
-                # To free memory in save_for_backward.
-                # state['output'] = None
-                # state['loss'] = None
-
             closure()
             state['t'] += 1
 

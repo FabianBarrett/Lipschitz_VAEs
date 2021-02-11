@@ -1,7 +1,4 @@
-# BB: Written starting August 14
-
 # Implements latent space attacks for qualitative evaluation of VAE robustness
-
 import argparse
 import os
 from munch import Munch
@@ -20,30 +17,29 @@ from lnets.models.utils.conversion import convert_VAE_from_bjorck
 from lnets.tasks.vae.mains.utils import orthonormalize_model, fix_groupings, get_target_image, sample_d_ball
 from lnets.tasks.vae.mains.max_damage_attack import max_damage_optimize_noise
 
-# BB: Taken but adapted from Alex Camuto and Matthew Willetts
 def latent_space_optimize_noise(model, config, image, target_image, initial_noise, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
     adversarial_losses = []
 
     def fmin_func(noise):
 
-        # BB: Soft determines whether latent space attack objective should be regularization_coefficient * norm of noise
+        # Soft determines whether latent space attack objective should be regularization_coefficient * norm of noise
         if soft:
           loss, gradient = model.eval_latent_space_attack(image, target_image, noise, soft=soft, regularization_coefficient=regularization_coefficient)
-        # BB: If not, use hard constraint on norm of noise (i.e. attack is limited to this norm)
+        # If not, use hard constraint on norm of noise (i.e. attack is limited to this norm)
         else:
             loss, gradient = model.eval_latent_space_attack(image, target_image, noise, soft=soft, maximum_noise_norm=maximum_noise_norm)
         adversarial_losses.append(loss)
         return float(loss.data.numpy()), gradient.data.numpy().flatten().astype(np.float64)
 
-    # BB: Bounds on the noise to ensure pixel values remain in interval [0, 1]
+    # Bounds on the noise to ensure pixel values remain in interval [0, 1]
     lower_limit = -image.data.numpy().flatten()
     upper_limit = (1.0 - image.data.numpy().flatten())
 
     bounds = zip(lower_limit, upper_limit)
     bounds = [sorted(y) for y in bounds]
 
-    # BB: Optimizer to find adversarial noise
+    # Optimizer to find adversarial noise
     noise, _, _ = scipy.optimize.fmin_l_bfgs_b(fmin_func,
                                                x0=initial_noise,
                                                bounds=bounds,
@@ -66,27 +62,14 @@ def get_attack_images(model, config, original_image, target_image, initial_noise
     _, noisy_reconstruction = model.loss(noisy_image)
     reshaped_noisy_reconstruction = noisy_reconstruction.view(1, 1, config.data.im_height, config.data.im_width)
     if viz_max_damage:
-        # image_compilation = torch.cat((original_image.unsqueeze(0), 
-        #                     reshaped_clean_reconstruction, 
-        #                     noise, 
-        #                     noisy_image.unsqueeze(0), 
-        #                     reshaped_noisy_reconstruction), dim=-1)
         image_compilation = [original_image.unsqueeze(0), 
                             reshaped_clean_reconstruction, 
                             noisy_image.unsqueeze(0), 
                             reshaped_noisy_reconstruction]
         return image_compilation
     else:
-        # image_compilation = torch.cat((original_image.unsqueeze(0), 
-        #                             reshaped_clean_reconstruction, 
-        #                             noise, 
-        #                             noisy_image.unsqueeze(0), 
-        #                             reshaped_noisy_reconstruction, 
-        #                             target_image.unsqueeze(0)), dim=-1)
         image_compilation = [original_image.unsqueeze(0), 
                                     reshaped_clean_reconstruction, 
-                                    noise, 
-                                    noisy_image.unsqueeze(0), 
                                     reshaped_noisy_reconstruction, 
                                     target_image.unsqueeze(0)]
         return image_compilation
@@ -118,14 +101,12 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
         lipschitz_image_compilation = get_attack_images(lipschitz_model, config, original_image, target_image, initial_noise, soft=soft, regularization_coefficient=regularization_coefficient, maximum_noise_norm=maximum_noise_norm, viz_max_damage=viz_max_damage, d_ball_init=d_ball_init)
         comparison_image_compilation = get_attack_images(comparison_model, config, original_image, target_image, initial_noise, soft=soft, regularization_coefficient=regularization_coefficient, maximum_noise_norm=maximum_noise_norm, viz_max_damage=viz_max_damage, d_ball_init=d_ball_init)
 
-        # # print(len(lipschitz_image_compilation))
-        # print(len(comparison_image_compilation))
-        # raise RuntimeError
-
         # Plotting
         plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        # image_captions = ["Original", "Original rec.", "Distortion", "Adversarial input", "Adversarial rec."]
-        image_captions = ["Original", "Original rec.", "Adversarial input", "Adversarial rec."]
+        if viz_max_damage:
+            image_captions = ["Original", "Original rec.", "Adversarial input", "Adversarial rec."]
+        else:
+            image_captions = ["Original", "Original rec.", "Adversarial rec.", "Target"]
         
         sns.set(style="whitegrid", font_scale=1.25)
         fig, axs = plt.subplots(1, 4, figsize=(7, 2))
@@ -146,7 +127,6 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
         fig, axs = plt.subplots(1, 4, figsize=(7, 2))
         for i in range(len(comparison_image_compilation)):
             axs[i].imshow(comparison_image_compilation[i].squeeze().detach())
-            # axs[i].set_title(image_captions[i], fontsize=10)
             axs[i].set_title(image_captions[i])
             axs[i].axis('off')
         plt.tight_layout()
@@ -157,30 +137,6 @@ def latent_space_attack(lipschitz_model, comparison_model, config, iterator, num
             plt.savefig(plotting_dir + "max_damage_viz_comparison_for_lipschitz_{}_maximum_perturbation_norm_{}_updated.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
         else:
             plt.savefig(plotting_dir + "latent_attack_{}_hard_comparison_for_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
-
-        # plt.figure(figsize=(9, 3))
-        # plt.imshow(lipschitz_image_compilation.detach().squeeze().numpy())
-        # plt.axis('off')
-        # plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        # if soft:
-        #     plt.title("Latent space attack on VAE with Lipschitz constant: {}".format(lipschitz_constant) + "\n Regularization coefficient: {}".format(regularization_coefficient)) # + image_caption)
-        #     plt.savefig(plotting_dir + "latent_attack_{}_soft_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
-        # elif viz_max_damage:
-        #     plt.savefig(plotting_dir + "max_damage_viz_for_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
-        # else:
-        #     plt.savefig(plotting_dir + "latent_attack_{}_hard_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
-
-        # plt.figure(figsize = (9, 3))
-        # plt.imshow(comparison_image_compilation.detach().squeeze().numpy())
-        # plt.axis('off')
-        # plotting_dir = "out/vae/attacks/latent_space_attacks/"
-        # if soft:
-        #     plt.title("Latent space attack on standard VAE" + "\n Regularization coefficient: {}".format(regularization_coefficient)) # + image_caption)
-        #     plt.savefig(plotting_dir + "latent_attack_{}_soft_comparison_for_lipschitz_{}_reg_coefficient_{}.png".format(index + 1, lipschitz_constant, regularization_coefficient), dpi=300)
-        # elif viz_max_damage:
-        #     plt.savefig(plotting_dir + "max_damage_viz_comparison_for_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
-        # else:
-        #     plt.savefig(plotting_dir + "latent_attack_{}_hard_comparison_for_lipschitz_{}_maximum_perturbation_norm_{}.png".format(index + 1, lipschitz_constant, maximum_noise_norm), dpi=300)
 
 
 def latent_attack_model(opt):
@@ -213,10 +169,10 @@ def latent_attack_model(opt):
     lipschitz_model_config.data.cuda = opt['data']['cuda']
     data = load_data(lipschitz_model_config)
 
-    # BB: Convert linear layers from Bjorck layers to standard linear layers
+    # Convert linear layers from Bjorck layers to standard linear layers
     standard_model = convert_VAE_from_bjorck(bjorck_model, lipschitz_model_config)
 
-    # BB: Orthonormalize the final weight matrices
+    # Orthonormalize the final weight matrices
     orthonormalized_standard_model = orthonormalize_model(standard_model, lipschitz_model_config, iters=opt['ortho_iters'])
 
     orthonormalized_standard_model.eval()

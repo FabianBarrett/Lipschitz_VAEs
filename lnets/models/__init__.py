@@ -35,7 +35,7 @@ def load_conv_dual(config):
                         linear_type=config.model.linear.type, activation=config.model.activation, config=config)
     return DualOptimModel(model)
 
-# BB: VAEs
+# VAEs
 @register_model('ELBO_fcMNISTVAE')
 def load_ELBO_fcMNISTVAE(config):
     model = fcMNISTVAE(config.model.encoder_mean.layers, config.model.encoder_std_dev.layers, config.model.decoder.layers, config.data.input_dim, 

@@ -62,12 +62,12 @@ if __name__ == '__main__':
     parser.add_argument('--model_dirs', type=str, nargs="+", help="locations of pretrained model weights to evaluate")
     parser.add_argument('--data.cuda', action='store_true', help="run in CUDA mode (default: False)")
     parser.add_argument('--ortho_iters', type=int, default=50, help='number of orthonormalization iterations to run on standard linear layers')
-    parser.add_argument('--num_R_margin_images', type=int, default=1, help='number of images to estimate R margin for') ### CHANGE THIS BACK ###
-    parser.add_argument('--num_estimation_samples', type=int, default=1, help='number of forward passes to use for estimating r / capital R') ### CHANGE THIS BACK TO 20 FROM 1 ###
+    parser.add_argument('--num_R_margin_images', type=int, default=10, help='number of images to estimate R margin for')
+    parser.add_argument('--num_estimation_samples', type=int, default=20, help='number of forward passes to use for estimating r / capital R')
     parser.add_argument('--r', type=float, default=8.0, help='value of r to evaluate r-robustness probability for')
-    parser.add_argument('--max_R', type=float, default=6.0, help='maximum value of R to test for in estimating r-robustness margin') ### EXPERIMENT WITH THIS ###
+    parser.add_argument('--max_R', type=float, default=6.0, help='maximum value of R to test for in estimating r-robustness margin')
     parser.add_argument('--d_ball_init', type=bool, default=True, help='whether attack noise should be initialized from random point in d-ball around image (True/False)')
-    parser.add_argument('--num_random_inits', type=int, default=1, help='how many random initializations of attack noise to use (int)') ### CHANGE THIS BACK TO 10 FROM 1 ###
+    parser.add_argument('--num_random_inits', type=int, default=10, help='how many random initializations of attack noise to use (int)')
     parser.add_argument('--margin_granularity', type=float, default=0.2, help='spacing between candidate R margins (smaller gives more exact estimate for more computation)')
 
     args = vars(parser.parse_args())

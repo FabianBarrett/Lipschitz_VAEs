@@ -1,5 +1,3 @@
-# BB: Implements the architecture of a VAE with a fully-connected encoder / decoder and diagonal Gaussian posterior
-
 import torch
 import torch.nn as nn
 import torch.distributions as ds
@@ -82,16 +80,13 @@ class fcMNISTVAE(Architecture):
         if self.gamma is None:
             encoder_std_dev = self.encoder_std_dev(x)
         else:
-            # print("Gamma value: {}".format(self.gamma))
-            # print("Reached gamma forward pass")
-            # raise RuntimeError
             encoder_std_dev = self.gamma * torch.ones(encoder_mean.shape)
         z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
         return self.decoder(z), encoder_mean, encoder_std_dev
 
     def _get_sequential_layers(self, activation, l_constant_per_layer, config, dropout=False, function=None):
         # First linear transformation.
-        # Add layerwise output scaling to control the Lipschitz Constant of the whole network.
+        # Add layerwise output scaling to control the Lipschitz constant of the whole network.
         layers = list()
         if dropout:
             layers.append(nn.Dropout(0.2))
@@ -156,13 +151,9 @@ class fcMNISTVAE(Architecture):
         z = encoder_mean + encoder_std_dev * self.standard_normal.sample(encoder_mean.shape)
         return z, encoder_mean, encoder_std_dev
 
-    # BB: Code taken but slightly adapted from Alex Camuto and Matthew Willetts
     # Note: maximum_noise_norm defines maximum radius of ball induced by noise around datapoint
     # If not "scale", then "clipping" (i.e. upper bound on norm rather than tight constraint)
-    # def eval_max_damage_attack(self, x, noise, maximum_noise_norm, scale=False, gamma=None):
     def eval_max_damage_attack(self, x, noise, maximum_noise_norm, scale=False):
-
-        # self.gamma = gamma
 
         noise = torch.tensor(noise)
         x = torch.tensor(x)
@@ -176,19 +167,16 @@ class fcMNISTVAE(Architecture):
                 noise = maximum_noise_norm * noise.div(noise.norm(p=2))
         noisy_x = x.view(-1, self.input_dim) + noise.view(-1, self.input_dim)
 
-        # print("X dims: {}".format(x.shape))
-
         original_reconstruction, _, _ = self.forward(x.view(-1, self.input_dim).float())
         # original_reconstruction, _, _ = self.forward(x.float())
         noisy_reconstruction, _, _ = self.forward(noisy_x.float())
 
-        # BB: Note this is the maximum damage objective
+        # Note this is the maximum damage objective
         loss = -(noisy_reconstruction - original_reconstruction).norm(p=2)
         gradient = torch.autograd.grad(loss, noise, retain_graph=True, create_graph=True)[0]
 
         return loss, gradient
 
-    # BB: Code taken but adapted from Alex Camuto and Matthew Willetts
     # Uses attack in Eq. 5 of https://arxiv.org/pdf/1806.04646.pdf
     def eval_latent_space_attack(self, x, target_x, noise, soft=False, regularization_coefficient=None, maximum_noise_norm=None):
 
@@ -216,6 +204,5 @@ class fcMNISTVAE(Architecture):
 
         return loss, gradient
 
-    # BB: Not implemented for now (left until later / necessary)
     def get_activations(self, x):
         raise NotImplementedError

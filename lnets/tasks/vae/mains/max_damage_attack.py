@@ -25,8 +25,6 @@ from lnets.tasks.vae.mains.utils import orthonormalize_model, \
                                         get_encoder_std_dev_Lipschitz_plot, \
                                         solve_bound_2
 
-# BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts
-# def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True, scale=False, gamma=None):
 def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_init=True, scale=False):
 
     if d_ball_init:
@@ -36,32 +34,20 @@ def max_damage_optimize_noise(model, config, image, maximum_noise_norm, d_ball_i
 
     adversarial_losses = []
 
-    # print("inside max damage optimize noise")
-    # print(hasattr(model, "gamma"))
-    # if hasattr(model, "gamma"):
-    #     print(model.gamma)
-    # # raise RuntimeError
-
     def fmin_func(noise):
 
-        # print("Inside fmin_func")
-        # print(hasattr(model, "gamma"))
-        # if hasattr(model, "gamma"):
-        #     print(model.gamma)
-
-        # loss, gradient = model.eval_max_damage_attack(image, noise, maximum_noise_norm, scale=scale, gamma=gamma)
         loss, gradient = model.eval_max_damage_attack(image, noise, maximum_noise_norm, scale=scale)
         adversarial_losses.append(loss)
         return float(loss.data.numpy()), gradient.data.numpy().flatten().astype(np.float64)
 
-    # BB: Bounds on the noise to ensure pixel values remain in interval [0, 1]
+    # Bounds on the noise to ensure pixel values remain in interval [0, 1]
     lower_limit = -image.data.numpy().flatten()
     upper_limit = (1.0 - image.data.numpy().flatten())
 
     bounds = zip(lower_limit, upper_limit)
     bounds = [sorted(y) for y in bounds]
 
-    # BB: Optimizer to find adversarial noise
+    # Optimizer to find adversarial noise
     noise, _, _ = scipy.optimize.fmin_l_bfgs_b(fmin_func,
                                                          x0=initial_noise,
                                                          bounds=bounds,
@@ -126,20 +112,12 @@ def get_max_damage_plot(models, model_configs, iterator, maximum_noise_norm, num
         plt.savefig(plotting_dir + saving_string, dpi=300)
         plt.clf()
 
-# BB: Taken and modestly adapted from Alex Camuto and Matthew Willetts (we add random restarts)
-# def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True, gamma=None):
 def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, margin_granularity, num_random_inits, d_ball_init=True):
-    
-    # print("inside estimate R margin")
-    # print(hasattr(model, "gamma"))
-    # if hasattr(model, "gamma"):
-    #     print(model.gamma)
     
     candidate_margins = np.arange(1e-6, max_R, margin_granularity)
     estimated_probabilities = []
     for random_init in range(num_random_inits):
         distances = []
-        # noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init, scale=True, gamma=gamma)
         noise, _ = max_damage_optimize_noise(model, config, image, candidate_margins[0], d_ball_init=d_ball_init, scale=True)
         noise = (candidate_margins[0] * noise.div(noise.norm(p=2)))
         noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
@@ -157,7 +135,6 @@ def estimate_R_margin(model, config, image, max_R, num_estimation_samples, r, ma
         estimated_probabilities = []
         for random_init in range(num_random_inits):
             distances = []
-            # noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init, scale=True, gamma=gamma)
             noise, _ = max_damage_optimize_noise(model, config, image, candidate_margin, d_ball_init=d_ball_init, scale=True)
             noise = (candidate_margin * noise.div(noise.norm(p=2)))
             noisy_image = image + noise.view(1, config.data.im_height, config.data.im_width)
@@ -211,16 +188,6 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
 
     get_log_likelihood_Lipschitz_plot(model_margins, models, model_configs, iterator)
 
-    # histogram_bins = np.arange(1e-6, max_R, margin_granularity)
-    # max_frequency = -1
-    # for margins in model_margins:
-    #     if max_frequency < max(margins[1]):
-    #         max_frequency = max(margins[1])
-
-    # model_margins = []
-    # for index in range(len(models)):
-    #     model_margins.append(("name {}".format(index), index + np.random.randint(0, 10, size=10)))
-
     colors = [color for color in mcolors.TABLEAU_COLORS][:len(models)]
 
     # Generate overlaid KDE plots of R margins
@@ -231,62 +198,13 @@ def get_R_margins(models, model_configs, iterator, num_images, max_R, num_estima
     fig = plt.figure()
     ax = plt.subplot(1, 1, 1)
     for model_index in range(len(models)):
-        # sns.kdeplot(ax=ax, data=np.array(model_margins[model_index][1]), color=colors[model_index], shade=True, alpha=0.4, label=model_margins[model_index][0])
         sns.kdeplot(ax=ax, data=np.array(model_margins[model_index][1]), shade=True, alpha=0.4, label=model_margins[model_index][0])
     box = ax.get_position()
     ax.set_position([box.x0, box.y0 + box.height * 0.1, box.width * 0.8, box.height * 0.9])
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    # plt.tight_layout()
     ax.set_xlabel(r"Estimated $R^r(x)$")
     ax.set_ylabel("Density")
-    # plt.legend()
     plt.savefig("out/vae/attacks/R_margins/" + "R_margins_KDEs_good_legend.png",  dpi=300)
-
-    # Generate histograms of R margins w.r.t. model type
-    # plt.clf()
-    # sns.set(style="whitegrid", font_scale=1.5)
-    # fig, ax = plt.subplots(len(models), 1, figsize=(6, len(models) + 4))
-    # for model_index in range(len(models)):
-    #     ax[model_index].hist(np.array(model_margins[model_index][1]), histogram_bins, label=model_margins[model_index][0], color=colors[model_index])
-    #     ax[model_index].set_yticks([])
-    #     ax[model_index].set_ylim([0, max_frequency + 2])
-    #     ax[model_index].set_ylabel("Frequency")
-    #     if model_index == (len(models) - 1):
-    #         ax[model_index].set_xlabel(r"Estimated $R^r(x)$")
-    #     else:
-    #         ax[model_index].set_xticks([])
-    #         ax[model_index].set_xlabel("")
-    #     ax[model_index].legend()
-    # # fig.suptitle(r"Estimated $R^r(x)$ for" + " r={}".format(r))
-    # fig.tight_layout()
-    # plotting_dir = "out/vae/attacks/R_margins/"
-    # if d_ball_init:
-    #     fig.savefig(plotting_dir + "estimated_R_margins_d_ball_init_certified_{}.png".format(str(certified).lower()), dpi=300)
-    # else:
-    #     fig.savefig(plotting_dir + "estimated_R_margins_standard_init_certified_{}.png".format(str(certified).lower()), dpi=300)
-    
-    # # Plot estimated R margins against margin implied by Markov bound
-    # for model_index in range(len(models)):
-    #     if model_configs[model_index].model.linear.type != "standard":
-    #         max_value = max(max(model_margins[model_index][2]), max(model_margins[model_index][1]))
-    #         plt.clf()
-    #         if not fixed_std_dev:
-    #             plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[model_index], linestyle='None', marker='o', fillstyle='full')
-    #         else:
-    #             plt.plot(np.array(model_margins[model_index][2]), np.array(model_margins[model_index][1]), color=colors[1], linestyle='None', marker='o', fillstyle='full')
-    #         print("Estimated R margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][1]))
-    #         print("Theoretical R margin for VAE with Lipschitz constant {}: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant), model_margins[model_index][2]))
-    #         plt.plot(np.linspace(0, max_value), np.linspace(0, max_value), color='black')
-    #         plt.xlabel(r"$R^r(x)$ bound (log scale)")
-    #         plt.xscale('log')
-    #         plt.ylabel(r"Estimated $R^r(x)$")
-    #         plt.title(r"Estimated $R^r(x)$ vs. $R^r(x)$ bound for" + " r={}".format(r) + "\n Lipschitz constant: {}".format(str(model_configs[model_index].model.encoder_mean.l_constant)))
-    #         if not fixed_std_dev:
-    #             saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}_certified_{}.png".format(str(model_configs[model_index].model.encoder_mean.l_constant), str(certified).lower())
-    #         else:
-    #             saving_name = "estimated_vs_theoretical_R_margins_d_ball_init_Lipschitz_{}_fixed_std_dev.png".format(str(model_configs[model_index].model.encoder_mean.l_constant))
-    #         plt.savefig(plotting_dir + saving_name, dpi=300)
-    #         plt.clf()
 
 def max_damage_attack_model(opt):
 
@@ -342,20 +260,16 @@ def max_damage_attack_model(opt):
     orthonormalized_models.append(comparison_model)
     model_configs.append(comparison_model_config)
 
-    # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
-    # get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
-    # raise RuntimeError
+    if not opt['certified']:
+        # Note: The following two function calls are added to the file for convenience (since all models are pre-loaded), not because of conceptual similarity
+        # Inspect the relationship between encoder standard deviation norm and encoder & decoder Lipschitz constant
+        get_encoder_std_dev_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
 
-    # if not opt['certified']:
-    #     # Note: The following two function calls are added to the file for convenience (since all models are pre-loaded), not because of conceptual similarity
-    #     # Inspect the relationship between encoder standard deviation norm and encoder & decoder Lipschitz constant
-    #     get_encoder_std_dev_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
+        # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
+        get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
 
-    #     # Inspect the relationship between reconstruction quality and encoder & decoder Lipschitz constant
-    #     get_log_likelihood_Lipschitz_plot(orthonormalized_models, model_configs, data['test'])
-
-    #     # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
-    #     get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
+        # Inspect r-robustness probability degradation w.r.t. norm of max damage attacks and model
+        get_max_damage_plot(orthonormalized_models, model_configs, data['test'], opt['maximum_noise_norm'], opt['num_max_damage_images'], opt['num_estimation_samples'], opt['r'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'])
 
     # Inspect estimated R margin w.r.t. model
     get_R_margins(orthonormalized_models, model_configs, data['test'], opt['num_R_margin_images'], opt['max_R'], opt['num_estimation_samples'], opt['r'], opt['margin_granularity'], opt['num_random_inits'], d_ball_init=opt['d_ball_init'], certified=opt['certified'], fixed_std_dev=opt['fixed_std_dev'])

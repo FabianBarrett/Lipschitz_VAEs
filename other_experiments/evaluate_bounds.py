@@ -69,7 +69,7 @@ def get_generalized_chi_2_params(gaussian_type, dimension, scaling=1):
 		variances = np.ones(dimension)
 	return means, variances
 
-# BB: Taken from Stack Overflow to align axes in plot
+# Taken from Stack Overflow to align axes in plot
 def align_yaxis(ax1, v1, ax2, v2):
     """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
     _, y1 = ax1.transData.transform((0, v1))

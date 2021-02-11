@@ -1,4 +1,3 @@
-# BB: Written starting July 26
 # Helper functions
 
 import matplotlib.pyplot as plt
@@ -15,7 +14,6 @@ from sympy import Poly, Interval, FiniteSet
 from sympy.solvers.inequalities import solve_poly_inequality
 
 def get_log_likelihood_Lipschitz_plot(margins, models, model_configs, iterator):
-    # models = [i for i in range(6)]
     # Assumes encoder and decoder take the same Lipschitz constant
     l_constants = [model_config.model.encoder_mean.l_constant for model_config in model_configs[:len(model_configs) - 1]]
     model_mean_NLLs = []
@@ -29,29 +27,16 @@ def get_log_likelihood_Lipschitz_plot(margins, models, model_configs, iterator):
     colors = [color for color in mcolors.TABLEAU_COLORS]
 
     mean_margins = [np.array(margins[index][1]).mean() for index in range(len(models) - 1)]
-    # l_constants = [5, 6, 7, 8, 9, 10]
-    # mean_margins = [9, 8, 7, 6, 5, 4]
-    # model_mean_NLLs = [1500, 1550, 1600, 1650, 1700, 1750]
 
     plt.clf()
-    sns.set(style="whitegrid", font_scale=1.5)
-    # sns.set(rc={"figure.figsize": (4, 4)}, style="whitegrid", font_scale=1.5)
-    # for index in range(len(models) - 1):
-        # plt.text(mean_margins[index], model_mean_NLLs[index], "Lipschitz constant {}".format(l_constants[index]))
-        # plt.text(mean_margins[index], model_mean_NLLs[index], "L {}".format(l_constants[index]))
-    # plt.plot(l_constants, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
-    # for index in range(len(l_constants)):
-    #     plt.plot(mean_margins[index], model_mean_NLLs[index], color=colors[index], linestyle='None', marker='o', fillstyle='full', label="Lip. const. {}".format(l_constants[index]))
+    sns.set(rc={"figure.figsize": (4, 4)}, style="whitegrid", font_scale=1.5)
     plt.plot(mean_margins, model_mean_NLLs, color=colors[0], linestyle='None', marker='o', fillstyle='full')
     for index in range(len(l_constants)):
         plt.annotate("({})".format(l_constants[index]), xy=(mean_margins[index], model_mean_NLLs[index]), xytext=(mean_margins[index] + 0.1, model_mean_NLLs[index] + 0))
     plt.ylabel("Mean test log likelihood")
     plt.xlabel(r"Mean estimated $R^r(x)$")
-    # plt.legend()
     plt.tight_layout()
-    # plt.show()
     plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/pareto_frontier.png', dpi=300)
-    # plt.savefig(os.getcwd() + '/out/vae/other_figures/lipschitz_relationships/log_likelihoods.png', dpi=300)
     plt.clf()
 
 def get_encoder_std_dev_Lipschitz_plot(models, model_configs, iterator):
@@ -163,7 +148,7 @@ def solve_data_dep_bound_2(a, b, c, r, m, encoder_std_dev_norm):
     return max(0.0, solution)
 
 # Adapted from http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
-# BB: Note that this doesn't exactly sample uniformly from the interior of a ball with the specified radius (due to scaling at the end)
+# Note that this doesn't exactly sample uniformly from the interior of a ball with the specified radius (due to scaling at the end)
 def sample_d_ball(d, radius):
     u = np.random.randn(d)
     norm = (u ** 2).sum() ** 0.5
@@ -183,7 +168,7 @@ def get_target_image(batch, input_class, input_index, num_images):
         image_index += 1
     raise RuntimeError("No appropriate target image found.")
 
-# Required hack inherited from Anil et al., 2019 to fix groupings
+# Required hack to fix groupings
 def fix_groupings(config):
 
     if 'groupings' in config.model.encoder_mean and config.model.encoder_mean.groupings[0] is -1:
@@ -269,7 +254,7 @@ def check_module_singular_values(module_list):
             print("Singular values of layer {}: Max = {:.3f} | min = {:.3f} | mean = {:.3f}".format(layer_counter, max_singular_value, min_singular_value, mean_singular_value))
             layer_counter += 1 
 
-# BB: Should only be applied to model that has already been converted from Bjorck to standard linear layers
+# Should only be applied to model that has already been converted from Bjorck to standard linear layers
 def check_VAE_singular_values(model):
 
     encoder_mean_list = list(model.model.encoder_mean.children())
@@ -295,7 +280,7 @@ def check_module_orthonormality(module_list, tol, verbose):
             layer_weights_product_diagonal = layer_weights.t().mm(layer_weights).diag()
             if verbose:
                 print("Layer {} weights product diagonal: {}".format(layer_counter, layer_weights_product_diagonal))
-            # BB: Checks whether all diagonal entries of weights product are close to 1
+            # Checks whether all diagonal entries of weights product are close to 1
             layer_weights_orthonormality_boolean = layer_weights_product_diagonal.isclose(torch.ones(layer_weights_product_diagonal.shape), atol=tol).all()
             print("Layer {} weights are orthonormal? {}".format(layer_counter, layer_weights_orthonormality_boolean))
             layer_counter += 1

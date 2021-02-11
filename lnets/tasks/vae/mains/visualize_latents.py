@@ -59,30 +59,6 @@ def visualize_latents(opt):
 	plotting_dir = "out/vae/other_figures/latent_visualizations"
 	unique_labels = sample_batch[1].unique()
 
-	# Visualize latents (mean + noise * std_dev)
-	# fig, ax = plt.subplots()
-	# for label_index in range(len(unique_labels)):
-	# 	indices = torch.nonzero(sample_batch[1] == unique_labels[label_index])
-	# 	ax.scatter(standard_model_latents[indices, 0].detach().numpy(), standard_model_latents[indices, 1].detach().numpy(), c=colors[label_index], label=unique_labels[label_index].item())
-	# 	ax.set_xlabel(r"$z_1$")
-	# 	ax.set_ylabel(r"$z_2$")
-	# ax.legend()
-	# fig.suptitle("Latent samples from a standard VAE")
-	# fig.savefig(plotting_dir + "/standard_VAE.png", dpi=300)
-	# fig.clf()
-
-	# fig, ax = plt.subplots()
-	# for label_index in range(len(unique_labels)):
-	# 	indices = torch.nonzero(sample_batch[1] == unique_labels[label_index])
-	# 	ax.scatter(lipschitz_model_1_latents[indices, 0].detach().numpy(), lipschitz_model_1_latents[indices, 1].detach().numpy(), c=colors[label_index], label=unique_labels[label_index].item())
-	# 	ax.set_xlabel(r"$z_1$")
-	# 	ax.set_ylabel(r"$z_2$")
-	# ax.legend()
-	# # Note: currently assumes Lipschitz constant of encoder mean, std dev and decoder are the same
-	# fig.suptitle("Latent samples from a VAE with Lipschitz constant {}".format(lipschitz_model_config_1.model.encoder_mean.l_constant))
-	# fig.savefig(plotting_dir + "/Lipschitz_VAE.png", dpi=300)
-	# fig.clf()
-
 	# Visualize encoder means and standard deviations
 	sns.set(rc={"figure.figsize": (4, 4)}, style="whitegrid", font_scale=1.5)
 	fig, ax = plt.subplots()
@@ -98,7 +74,6 @@ def visualize_latents(opt):
 	# Plot contours of prior (\mathcal{N}(\mathbf{0}, \mathbf{I})) for three standard deviations
 	for standard_deviation in [1, 2, 3]:
 		ax.add_artist(Ellipse(xy=[0.0, 0.0], width=standard_deviation * 1.0, height=standard_deviation * 1.0, edgecolor='black', facecolor='none', alpha=0.5, label=r"{}$\sigma$".format(int(standard_deviation))))
-	# ax.legend()
 	plt.tight_layout()
 	fig.savefig(plotting_dir + "/standard_VAE_posterior.png", dpi=300)
 	fig.clf()
@@ -117,14 +92,12 @@ def visualize_latents(opt):
 	# Plot contours of prior (\mathcal{N}(\mathbf{0}, \mathbf{I})) for three standard deviations
 	for standard_deviation in [1, 2, 3]:
 		ax.add_artist(Ellipse(xy=[0.0, 0.0], width=standard_deviation * 1.0, height=standard_deviation * 1.0, edgecolor='black', facecolor='none', alpha=0.4, label=r"{}$\sigma$".format(int(standard_deviation))))
-	# ax.legend()
 	plt.tight_layout()
 	# Note: currently assumes Lipschitz constant of encoder mean, std dev and decoder are the same
 	if 'beta' in opt['lipschitz_model_1']['exp_path']:
 		fig.savefig(plotting_dir + "/Lipschitz_beta_VAE_1_posterior.png", dpi=300)
 	else:
 		fig.savefig(plotting_dir + "/Lipschitz_VAE_1_posterior.png", dpi=300)
-		# fig.savefig(plotting_dir + "/Lipschitz_VAE_deeper_posterior.png", dpi=300)
 	fig.clf()
 
 	sns.set(rc={"figure.figsize": (4, 4)}, style="whitegrid", font_scale=1.5)
